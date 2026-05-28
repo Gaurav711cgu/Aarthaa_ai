@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 from app.services.compliance_agent import compliance_agent
+from app.api.v1.auth import RoleEnforcer
 import uuid
 import logging
 
@@ -41,7 +42,10 @@ class RegulationQueryResponse(BaseModel):
     citations: List[CitationQueryDetail]
 
 @router.post("/check", response_model=ComplianceCheckResponse, status_code=status.HTTP_200_OK)
-async def check_compliance(payload: ComplianceCheckRequest):
+async def check_compliance(
+    payload: ComplianceCheckRequest,
+    current_user: Dict[str, Any] = Depends(RoleEnforcer("readonly"))
+):
     """Audits transaction limits against RBI, FEMA LRS, and PMLA reporting thresholds."""
     try:
         tx_dict = payload.model_dump()
@@ -58,7 +62,10 @@ async def check_compliance(payload: ComplianceCheckRequest):
         )
 
 @router.post("/query", response_model=RegulationQueryResponse, status_code=status.HTTP_200_OK)
-async def query_regulations(payload: RegulationQueryRequest):
+async def query_regulations(
+    payload: RegulationQueryRequest,
+    current_user: Dict[str, Any] = Depends(RoleEnforcer("readonly"))
+):
     """Retrieves relevant circulars and generates cited compliance guidelines in real time."""
     try:
         result = compliance_agent.query_regulations(payload.query)
@@ -69,3 +76,4 @@ async def query_regulations(payload: RegulationQueryRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Compliance RAG execution failed: {str(e)}"
         )
+

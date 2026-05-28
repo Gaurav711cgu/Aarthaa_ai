@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import shap
 import logging
+import threading
 from typing import Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 MODEL_PATH = os.path.join(BASE_DIR, "app", "models", "fraud_model.pkl")
 
 class FraudScoringEngine:
-    """Production-grade transaction fraud scoring engine utilizing RandomForest + Isolation Forest."""
+    """Production-grade transaction fraud scoring engine utilizing RandomForest + Isolation Forest.
+    Supports auto-training on startup in a background thread if the serialized model is missing.
+    """
     def __init__(self):
         self.features = ["amount", "hour", "velocity_1h", "distance_from_home", "merchant_risk"]
         self.rf_model = None
@@ -21,8 +24,11 @@ class FraudScoringEngine:
         self.explainer = None
         self.metrics = {}
         self.is_compiled = False
+        self.is_training = False
         
         self._load_model()
+        if not self.is_compiled:
+            self.start_background_training()
         
     def _load_model(self):
         """Loads serialized model files or defaults to heuristic scoring if files are missing."""
@@ -46,6 +52,26 @@ class FraudScoringEngine:
         # Default fallback flag
         self.is_compiled = False
         logger.warning("Ensemble model package not found. Activating heuristic fallback scoring engine.")
+
+    def start_background_training(self):
+        """Launches a daemon thread to train the model automatically on startup."""
+        self.is_training = True
+        thread = threading.Thread(target=self._run_training, daemon=True)
+        thread.start()
+        logger.info("Auto-training thread launched.")
+
+    def _run_training(self):
+        """Background thread worker to train the ensemble model and load it."""
+        try:
+            logger.info("Background thread is training the ensemble fraud model...")
+            from scripts.train_fraud_model import train_and_save_ensemble
+            train_and_save_ensemble()
+            self._load_model()
+            logger.info("Background thread successfully trained and loaded the fraud model.")
+        except Exception as e:
+            logger.error(f"Failed to auto-train model in background thread: {e}")
+        finally:
+            self.is_training = False
 
     def score_transaction(self, tx_data: Dict[str, Any]) -> Dict[str, Any]:
         """Calculates fraud probabilities, anomaly thresholds, and natural language explanations."""
@@ -98,6 +124,10 @@ class FraudScoringEngine:
                     "risk_tier": risk_tier,
                     "explanation": explanation,
                     "shap_values": shap_contributions,
+                    "shap_chart_data": {
+                        "features": list(shap_contributions.keys()),
+                        "values": list(shap_contributions.values())
+                    },
                     "model_source": "RandomForest+IsolationForest_Ensemble"
                 }
             except Exception as e:
@@ -186,12 +216,17 @@ class FraudScoringEngine:
         else:
             explanation = "Transaction shows standard operational parameters matching rules."
             
+        shap_vals = {k: 0.1 for k in self.features}
         return {
             "fraud_probability": prob,
             "anomaly_score": 0.0,
             "risk_tier": tier,
             "explanation": explanation,
-            "shap_values": {k: 0.1 for k in self.features},
+            "shap_values": shap_vals,
+            "shap_chart_data": {
+                "features": list(shap_vals.keys()),
+                "values": list(shap_vals.values())
+            },
             "model_source": "RuleEngine_Fallback"
         }
 

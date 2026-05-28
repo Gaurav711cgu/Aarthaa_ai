@@ -126,7 +126,7 @@ log_success "All python packages installed successfully."
 log_info "Validating intelligence pipelines..."
 
 MODEL_FILE="app/models/fraud_model.pkl"
-EMBEDDINGS_FILE="app/models/reg_embeddings.pkl"
+EMBEDDINGS_FILE="app/models/reg_embeddings.json"
 
 if [ ! -f "${MODEL_FILE}" ]; then
     log_warn "FraudSense RandomForest ensemble not compiled. Initiating pipeline training run..."

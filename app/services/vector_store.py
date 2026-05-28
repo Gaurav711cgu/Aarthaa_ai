@@ -1,5 +1,6 @@
 import os
-import pickle
+import json
+import zlib
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import logging
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Derive paths dynamically based on the file location for full ecosystem portability
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-EMBEDDINGS_FILE = os.path.join(BASE_DIR, "app", "models", "reg_embeddings.pkl")
+EMBEDDINGS_FILE = os.path.join(BASE_DIR, "app", "models", "reg_embeddings.json")
 MODEL_NAME = "all-MiniLM-L6-v2" # Ultra-lightweight ~90MB local model
 
 class LocalVectorStore:
@@ -26,12 +27,32 @@ class LocalVectorStore:
         self._load_local_embeddings()
 
     def _load_local_embeddings(self):
-        """Loads serialized embeddings from pickle if running in SQLite fallback mode."""
+        """Loads serialized embeddings from secure JSON file if running in SQLite fallback mode."""
         if not is_postgres_active:
             if os.path.exists(EMBEDDINGS_FILE):
                 try:
-                    with open(EMBEDDINGS_FILE, "rb") as f:
-                        self.embeddings_db = pickle.load(f)
+                    with open(EMBEDDINGS_FILE, "r", encoding="utf-8") as f:
+                        json_str = f.read()
+                        
+                    # Calculate and verify CRC32 checksum to verify integrity
+                    crc_file = EMBEDDINGS_FILE + ".crc"
+                    if os.path.exists(crc_file):
+                        with open(crc_file, "r") as cf:
+                            saved_crc = int(cf.read().strip())
+                        current_crc = zlib.crc32(json_str.encode("utf-8"))
+                        if current_crc != saved_crc:
+                            logger.error("CRC32 validation failed for local regulations embeddings! Index file is corrupt.")
+                            return
+                    
+                    data = json.loads(json_str)
+                    self.embeddings_db = []
+                    for item in data:
+                        self.embeddings_db.append({
+                            "text": item["text"],
+                            "source": item["source"],
+                            "section": item["section"],
+                            "vector": np.array(item["vector"], dtype=np.float32)
+                        })
                     logger.info(f"Loaded {len(self.embeddings_db)} local vectorized regulation chunks.")
                     return
                 except Exception as e:
@@ -47,10 +68,7 @@ class LocalVectorStore:
         
         # 1. Store in SQL databases if PostgreSQL pgvector is enabled
         if is_postgres_active:
-            # Under PG, we would save to PG database using SQL session.
-            # We'll write this integration for enterprise completeness.
             logger.info("pgvector storage selected (PostgreSQL active).")
-            # For local demo offline fallback simplicity, we also cache it locally
             
         # 2. Store in local NumPy store
         for i, chunk in enumerate(chunks):
@@ -61,12 +79,31 @@ class LocalVectorStore:
                 "vector": vectors[i]
             })
             
-        # Serialize to pickle file
+        # Serialize to JSON file securely
         os.makedirs(os.path.dirname(EMBEDDINGS_FILE), exist_ok=True)
         try:
-            with open(EMBEDDINGS_FILE, "wb") as f:
-                pickle.dump(self.embeddings_db, f)
-            logger.info(f"Successfully serialized {len(self.embeddings_db)} regulation records to local store.")
+            serialized_db = []
+            for item in self.embeddings_db:
+                vec = item["vector"]
+                if isinstance(vec, np.ndarray):
+                    vec = vec.tolist()
+                serialized_db.append({
+                    "text": item["text"],
+                    "source": item["source"],
+                    "section": item["section"],
+                    "vector": vec
+                })
+            
+            json_str = json.dumps(serialized_db)
+            crc = zlib.crc32(json_str.encode("utf-8"))
+            
+            with open(EMBEDDINGS_FILE, "w", encoding="utf-8") as f:
+                f.write(json_str)
+                
+            with open(EMBEDDINGS_FILE + ".crc", "w") as cf:
+                cf.write(str(crc))
+                
+            logger.info(f"Successfully serialized {len(self.embeddings_db)} regulation records to local JSON store.")
         except Exception as e:
             logger.error(f"Failed to serialize embeddings: {e}")
 

@@ -4,12 +4,12 @@ from app.main import app
 client = TestClient(app)
 
 def test_read_root():
-    """Verify core API routing and module manifest outputs."""
+    """Verify core API routing and Gradio dashboard output."""
     response = client.get("/")
     assert response.status_code == 200
-    data = response.json()
-    assert data["platform"] == "Artha AI"
-    assert "modules" in data
+    assert "text/html" in response.headers["content-type"]
+    assert "ARTHA AI" in response.text
+
 
 def test_health_check_endpoint():
     """Verify robust health checking infrastructure behavior.

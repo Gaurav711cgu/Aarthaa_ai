@@ -1,0 +1,49 @@
+name: Artha AI CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run unit and integration tests
+      env:
+        SECRET_KEY: "super_secret_key_for_testing_purposes"
+        GROQ_API_KEY: "" # Empty triggers robust offline fallback modes in tests
+      run: |
+        PYTHONPATH=. pytest
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        
+    - name: Push to Hugging Face Spaces
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: |
+        git config --global user.email "gauravkumarnayak@gmail.com"
+        git config --global user.name "Gaurav Kumar Nayak"
+        # Push main branch to HF space remote repository
+        git remote add hf https://Gaurav711:$HF_TOKEN@huggingface.co/spaces/Gaurav711/Artha_ai || true
+        git push -f hf main

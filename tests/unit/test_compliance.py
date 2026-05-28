@@ -4,6 +4,14 @@ import uuid
 
 client = TestClient(app)
 
+def get_readonly_headers():
+    response = client.post("/auth/token", json={
+        "username": "readonly",
+        "password": "readonly_password_2026"
+    })
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
 def test_compliant_retail_transaction():
     """Verify standard retail UPI transfer is marked as fully compliant."""
     payload = {
@@ -13,7 +21,8 @@ def test_compliant_retail_transaction():
         "user_id": str(uuid.uuid4())
     }
     
-    response = client.post("/api/v1/compliance/check", json=payload)
+    headers = get_readonly_headers()
+    response = client.post("/api/v1/compliance/check", json=payload, headers=headers)
     assert response.status_code == 200
     
     data = response.json()
@@ -31,7 +40,8 @@ def test_upi_limit_violation():
         "user_id": str(uuid.uuid4())
     }
     
-    response = client.post("/api/v1/compliance/check", json=payload)
+    headers = get_readonly_headers()
+    response = client.post("/api/v1/compliance/check", json=payload, headers=headers)
     assert response.status_code == 200
     
     data = response.json()
@@ -53,7 +63,8 @@ def test_fema_lrs_limit_violation():
         "user_id": str(uuid.uuid4())
     }
     
-    response = client.post("/api/v1/compliance/check", json=payload)
+    headers = get_readonly_headers()
+    response = client.post("/api/v1/compliance/check", json=payload, headers=headers)
     assert response.status_code == 200
     
     data = response.json()
@@ -69,7 +80,8 @@ def test_compliance_rag_query():
         "query": "What is the daily transaction limit for standard UPI?"
     }
     
-    response = client.post("/api/v1/compliance/query", json=payload)
+    headers = get_readonly_headers()
+    response = client.post("/api/v1/compliance/query", json=payload, headers=headers)
     assert response.status_code == 200
     
     data = response.json()
@@ -78,3 +90,4 @@ def test_compliance_rag_query():
     # Correct circular should be cited first due to high cosine similarity
     assert data["citations"][0]["document"] == "RBI_UPI_LIMITS_2024"
     assert "Para 2.1" in data["citations"][0]["section"]
+

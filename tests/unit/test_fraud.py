@@ -4,6 +4,14 @@ import uuid
 
 client = TestClient(app)
 
+def get_analyst_headers():
+    response = client.post("/auth/token", json={
+        "username": "analyst",
+        "password": "analyst_password_2026"
+    })
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
 def test_analyze_low_risk_transaction():
     """Verify that a standard legitimate transaction gets approved."""
     payload = {
@@ -15,7 +23,8 @@ def test_analyze_low_risk_transaction():
         "user_id": str(uuid.uuid4())
     }
     
-    response = client.post("/api/v1/fraud/analyze", json=payload)
+    headers = get_analyst_headers()
+    response = client.post("/api/v1/fraud/score", json=payload, headers=headers)
     assert response.status_code == 200
     
     data = response.json()
@@ -37,7 +46,8 @@ def test_analyze_high_risk_transaction():
         "user_id": str(uuid.uuid4())
     }
     
-    response = client.post("/api/v1/fraud/analyze", json=payload)
+    headers = get_analyst_headers()
+    response = client.post("/api/v1/fraud/score", json=payload, headers=headers)
     assert response.status_code == 200
     
     data = response.json()
@@ -58,5 +68,7 @@ def test_analyze_invalid_payload():
         "user_id": "not-a-uuid" # invalid UUID
     }
     
-    response = client.post("/api/v1/fraud/analyze", json=payload)
+    headers = get_analyst_headers()
+    response = client.post("/api/v1/fraud/score", json=payload, headers=headers)
     assert response.status_code == 422 # Unprocessable Entity
+

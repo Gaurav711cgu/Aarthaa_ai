@@ -3,7 +3,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     ENV: str = "development"
-    SECRET_KEY: str = "9aefc882875b4dbab2059346d03cf955848e02d64f0616b2bc3193ce140c883e"
+    SECRET_KEY: str = "placeholder_secret_key_minimum_32_characters"
     
     POSTGRES_USER: str = "artha_admin"
     POSTGRES_PASSWORD: str = "artha_password_secure_2026"
@@ -25,4 +25,15 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
+    def __init__(self, **values):
+        super().__init__(**values)
+        if self.SECRET_KEY:
+            assert len(self.SECRET_KEY) >= 32, "SECRET_KEY too short"
+        if self.ENV == "production":
+            if not self.SECRET_KEY or self.SECRET_KEY == "placeholder_secret_key_minimum_32_characters":
+                raise ValueError("SECRET_KEY must be set in production mode!")
+            if not self.GROQ_API_KEY:
+                raise ValueError("GROQ_API_KEY must be set in production mode!")
+
 settings = Settings()
+

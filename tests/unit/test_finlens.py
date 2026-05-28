@@ -17,13 +17,22 @@ PERIOD: March 2026
 2026-03-20 | House Rent Payment | DEBIT | 15000.00 | 159200.00
 """
 
+def get_analyst_headers():
+    response = client.post("/auth/token", json={
+        "username": "analyst",
+        "password": "analyst_password_2026"
+    })
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
 def test_upload_and_parse_bank_statement():
     """Verify that uploading a text-based bank statement successfully parses transactions and saves them to SQL."""
     payload = {
         "raw_text": MOCK_STATEMENT_TEXT
     }
     
-    response = client.post("/api/v1/docs/upload", json=payload)
+    headers = get_analyst_headers()
+    response = client.post("/api/v1/finlens/upload", json=payload, headers=headers)
     assert response.status_code == 201
     
     data = response.json()
@@ -39,7 +48,8 @@ def test_upload_and_parse_bank_statement():
 def test_query_closing_balance():
     """Verify that querying closing balance generates a SQL query and returns the exact math-verified float value."""
     # First, ensure statement is uploaded
-    upload_res = client.post("/api/v1/docs/upload", json={"raw_text": MOCK_STATEMENT_TEXT})
+    headers = get_analyst_headers()
+    upload_res = client.post("/api/v1/finlens/upload", json={"raw_text": MOCK_STATEMENT_TEXT}, headers=headers)
     statement_id = upload_res.json()["statement_id"]
     
     # Query closing balance
@@ -48,7 +58,7 @@ def test_query_closing_balance():
         "statement_id": statement_id
     }
     
-    response = client.post("/api/v1/docs/query", json=payload)
+    response = client.post("/api/v1/finlens/query", json=payload, headers=headers)
     assert response.status_code == 200
     
     data = response.json()
@@ -59,7 +69,8 @@ def test_query_closing_balance():
 
 def test_query_food_expenses():
     """Verify that querying food spends successfully sums DEBIT food transactions in SQL."""
-    upload_res = client.post("/api/v1/docs/upload", json={"raw_text": MOCK_STATEMENT_TEXT})
+    headers = get_analyst_headers()
+    upload_res = client.post("/api/v1/finlens/upload", json={"raw_text": MOCK_STATEMENT_TEXT}, headers=headers)
     statement_id = upload_res.json()["statement_id"]
     
     payload = {
@@ -67,7 +78,7 @@ def test_query_food_expenses():
         "statement_id": statement_id
     }
     
-    response = client.post("/api/v1/docs/query", json=payload)
+    response = client.post("/api/v1/finlens/query", json=payload, headers=headers)
     assert response.status_code == 200
     
     data = response.json()
@@ -77,7 +88,8 @@ def test_query_food_expenses():
 
 def test_query_salary_credits():
     """Verify that querying salary earnings filters by CREDIT and description in SQL."""
-    upload_res = client.post("/api/v1/docs/upload", json={"raw_text": MOCK_STATEMENT_TEXT})
+    headers = get_analyst_headers()
+    upload_res = client.post("/api/v1/finlens/upload", json={"raw_text": MOCK_STATEMENT_TEXT}, headers=headers)
     statement_id = upload_res.json()["statement_id"]
     
     payload = {
@@ -85,10 +97,11 @@ def test_query_salary_credits():
         "statement_id": statement_id
     }
     
-    response = client.post("/api/v1/docs/query", json=payload)
+    response = client.post("/api/v1/finlens/query", json=payload, headers=headers)
     assert response.status_code == 200
     
     data = response.json()
     assert data["numerical_value"] == 125000.0 # Salary
     assert "Salary Earnings" in data["answer"]
     assert "LIKE" in data["compiled_sql"]
+
