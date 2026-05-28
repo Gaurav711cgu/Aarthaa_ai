@@ -1,0 +1,19 @@
+[DOCUMENT: FEMA_LRS_2024]
+[SECTION: Section 6(3) - Liberalised Remittance Scheme]
+Under the Liberalised Remittance Scheme (LRS), all resident individuals, including minors, are allowed to freely remit up to USD 2,50,000 (United States Dollars Two Hundred and Fifty Thousand only) per financial year (April - March) for any permissible current or capital account transaction or a combination of both. Any remittances exceeding this threshold of USD 2,50,000 require prior approval from the Reserve Bank of India (RBI). Resident individuals are not permitted to make remittances for speculative purposes, margins on foreign exchanges, or illegal operations.
+
+[DOCUMENT: RBI_KYC_DIR_2023]
+[SECTION: Para 4.1 - Customer Due Diligence and Re-KYC]
+Regulated entities must conduct periodic updating of KYC documents (Re-KYC) based on the risk category assigned to the customer. For High-risk customers, full Re-KYC must be executed every 2 years. For Medium-risk customers, Re-KYC must be executed every 8 years. For Low-risk customers, Re-KYC must be executed every 10 years. If a customer fails to submit valid officially valid documents (OVD) within 3 months of the due date, the account operations must be partially frozen, restricting debit transactions.
+
+[DOCUMENT: RBI_UPI_LIMITS_2024]
+[SECTION: Para 2.1 - Daily UPI Transaction Thresholds]
+The standard daily transaction limit for Unified Payments Interface (UPI) transfers is capped at INR 1,00,000 (One Lakh Rupees) per individual per day. However, to facilitate larger payments for specific essential sectors, the limit has been modified. For Capital Markets, Collections, and Insurance payments, the daily transaction limit is elevated to INR 2,00,000. For transactions relating to Educational Institutions and Hospitals, the transaction limit is elevated to INR 5,00,000 per day.
+
+[DOCUMENT: PMLA_MONEY_LAUNDERING_2002]
+[SECTION: Section 12 - Reporting Thresholds to FIU-IND]
+Under the Prevention of Money Laundering Act (PMLA), every reporting financial institution must maintain a record of all transactions. Reporting entities must report all cash transactions exceeding INR 10,00,000 (Ten Lakh Rupees) or its equivalent in foreign currency, or a series of integrally connected cash transactions that sum to this limit within a calendar month, to the Financial Intelligence Unit - India (FIU-IND) within 7 days of occurrence.
+
+[DOCUMENT: RBI_PPI_WALLET_2023]
+[SECTION: Para 3.5 - PPI Balance Loading Constraints]
+Prepaid Payment Instruments (PPIs) including mobile wallets are subject to strict loading limits. For semi-closed PPIs (Minimum KYC wallets), the maximum loading balance is capped at INR 10,000 (Ten Thousand Rupees) per month, and total credit in a financial year cannot exceed INR 1,20,000. For full-KYC PPIs, the outstanding balance in the wallet must not exceed INR 2,00,000 (Two Lakh Rupees) at any point in time.

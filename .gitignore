@@ -1,0 +1,30 @@
+# ==========================================
+# Git Ignore Rules — Artha AI
+# ==========================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local database instances
+*.db
+*.sqlite3
+artha_local.db
+
+# Environments
+.env
+.env.local
+.venv/
+env/
+venv/
+
+# Serialized Model binaries and vector indexes
+# These are compiled at startup by scripts inside the running Docker container
+app/models/*.pkl
+app/models/*.bin
+app/models/*.onnx
+
+# System files
+.DS_Store
+Thumbs.db
