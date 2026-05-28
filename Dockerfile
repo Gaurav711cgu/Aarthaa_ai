@@ -11,6 +11,10 @@ LABEL description="Production-Grade FastAPI app container for Artha AI fintech p
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+# Build-time placeholder — overridden at runtime by HF Spaces secrets injection.
+# This allows warmup scripts (which import app.config) to run without crashing.
+# The real SECRET_KEY must be set in HF Spaces → Settings → Secrets.
+ENV SECRET_KEY="artha_docker_build_placeholder_secret_key"
 
 WORKDIR /app
 
@@ -46,9 +50,13 @@ USER artha
 EXPOSE 7860
 
 # Set healthcheck to verify container health
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=60s --timeout=10s --start-period=120s --retries=3 \
   CMD curl -f http://localhost:7860/health || exit 1
 
-# Start production uvicorn worker, defaulting to 7860 (Hugging Face standard)
-# Run pipeline warmups on startup to bypass build network restrictions
-CMD ["sh", "-c", "python scripts/train_fraud_model.py && python scripts/ingest_regulations.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
+# Start uvicorn immediately; run warmup scripts in background so a failure
+# (e.g. missing DB, SECRET_KEY not yet injected) never blocks the web server.
+CMD ["sh", "-c", "\
+  (python scripts/train_fraud_model.py || echo '[WARN] train_fraud_model.py failed — heuristic fallback active') & \
+  (python scripts/ingest_regulations.py || echo '[WARN] ingest_regulations.py failed — vector store may be empty') & \
+  exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1 --log-level info \
+"]
