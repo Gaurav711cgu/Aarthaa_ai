@@ -130,12 +130,10 @@ def health_check(request: Request, db: Session = Depends(get_db)):
         }
     }
     
-    if overall_status == "degraded":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=health_status
-        )
-        
+    # Returning 200 OK instead of 503 Service Unavailable so that health check liveness probes
+    # (e.g. on Hugging Face Spaces or container environments) do not kill the container when
+    # external services like Postgres/Redis/Kafka are offline on startup. The JSON payload will
+    # still clearly show which sub-services are unreachable for monitoring purposes.
     return health_status
 
 @app.get("/metrics")

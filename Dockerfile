@@ -16,6 +16,13 @@ ENV PYTHONPATH=/app
 # The real SECRET_KEY must be set in HF Spaces → Settings → Secrets.
 ENV SECRET_KEY="artha_docker_build_placeholder_secret_key"
 
+# Redirect Hugging Face Spaces home / cache to avoid permission errors
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
+
+# Create a user with UID 1000 to match Hugging Face Spaces requirements
+RUN useradd -m -u 1000 user
+
 WORKDIR /app
 
 # Install system dependencies needed for compiling binary packages
@@ -26,25 +33,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install python dependencies first to optimize Docker layer cache
-COPY requirements.txt .
+# Copy requirements and install them, ensuring ownership by user 1000
+COPY --chown=user:user requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --prefer-binary -r requirements.txt
 
-# Copy all application directories and files
-COPY app /app/app
-COPY scripts /app/scripts
-COPY data /app/data
+# Copy all application directories and files with proper ownership
+COPY --chown=user:user app /app/app
+COPY --chown=user:user scripts /app/scripts
+COPY --chown=user:user data /app/data
+
+# Ensure write permissions on the /app directory so user 1000 can write local DB/models
+RUN chown -R user:user /app && chmod -R 755 /app
 
 # Pre-compile Python source files to bytecode to optimize startup latencies
 RUN python -m compileall app/
 
-# Create a dedicated, unprivileged system user for runtime security
-RUN groupadd -r artha && useradd -no-log-init -r -g artha artha && \
-    chown -R artha:artha /app
-
-# Switch to unprivileged runtime execution context
-USER artha
+# Switch to the non-root user (UID 1000)
+USER user
 
 # Expose standard HF Space port
 EXPOSE 7860
