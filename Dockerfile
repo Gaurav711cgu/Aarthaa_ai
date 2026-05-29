@@ -36,7 +36,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements and install them, ensuring ownership by user 1000
 COPY --chown=user:user requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --prefer-binary -r requirements.txt
+    pip install --no-cache-dir --prefer-binary -r requirements.txt && \
+    pip uninstall -y multipart && \
+    pip install --no-cache-dir --prefer-binary python-multipart
 
 # Copy all application directories and files with proper ownership
 COPY --chown=user:user app /app/app
