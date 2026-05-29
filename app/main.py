@@ -1,3 +1,16 @@
+# ── Namespace Collision Resolution Shim ────────────────────────────────────────
+# Both litestar (evidently) and gradio/fastapi use the 'multipart' namespace.
+# litestar needs the legacy 'multipart' module (Marcel Hellkamp) for MultipartSegment.
+# gradio needs the modern 'python-multipart' package (Andrew Dunham) for multipart.multipart.
+# We dynamically inject python-multipart's submodule into sys.modules so they both co-exist.
+import sys
+try:
+    import python_multipart.multipart as pm_multipart
+    sys.modules["multipart.multipart"] = pm_multipart
+except ImportError:
+    pass
+# ──────────────────────────────────────────────────────────────────────────────
+
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, status
 from fastapi.middleware.gzip import GZipMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
