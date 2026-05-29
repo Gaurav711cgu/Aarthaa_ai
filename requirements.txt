@@ -18,29 +18,29 @@ confluent-kafka>=2.3.0,<3.0.0
 
 # ── ML / FraudSense ───────────────────────────────────────────────────────────
 xgboost>=2.0.3,<3.0.0
-# shap<0.46 uses lightgbm/sklearn feature importance — NO numba/llvmlite dependency
-shap>=0.44.0,<0.46.0
 scikit-learn>=1.4.1,<2.0.0
+# SHAP: use 0.43.x — last version before numba became a hard dependency
+shap>=0.43.0,<0.44.0
 
 # ── LangChain / FinLens / RegGuard ────────────────────────────────────────────
-# Pin to 0.3.x family — 0.4.x+ is unreleased/unstable as of 2025
 langchain>=0.3.0,<0.4.0
 langchain-core>=0.3.0,<0.4.0
 langchain-groq>=0.2.0,<0.4.0
 langchain-community>=0.3.0,<0.4.0
 groq>=0.9.0,<2.0.0
-# langgraph 0.3+ introduced langgraph-sdk heavy deps — stay on 0.2.x LTS
-langgraph>=0.2.0,<0.3.0
+# NOTE: langgraph 0.2.x STILL pulls langgraph-sdk — use 0.1.x which does not
+langgraph>=0.1.0,<0.2.0
 
 # ── Data / Parsing ────────────────────────────────────────────────────────────
 pandas>=2.0.0,<3.0.0
 pypdf>=4.1.0,<5.0.0
-pymupdf>=1.23.26,<1.25.0
 python-dotenv>=1.0.1,<2.0.0
 
 # ── Observability ─────────────────────────────────────────────────────────────
-evidently>=0.4.0,<0.5.0
-# gradio 5.x is a complete rewrite with different deps — pin to 4.x explicitly
+# evidently 0.7.x has evidently.legacy API used in drift_detector.py
+# 0.4.x does NOT have legacy API + pulls pymupdf as transitive dep
+evidently>=0.7.0,<0.8.0
+# gradio 4.x only — 5.x is a full rewrite
 gradio>=4.26.0,<5.0.0
 matplotlib>=3.8.0,<4.0.0
 
