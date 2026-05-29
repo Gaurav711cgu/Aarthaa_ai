@@ -19,6 +19,7 @@ redis>=5.0.3,<6.0.0
 confluent-kafka>=2.3.0,<3.0.0
 
 # ── ML / FraudSense ───────────────────────────────────────────────────────────
+numpy>=1.24.0,<2.0.0
 xgboost>=2.0.3,<3.0.0
 scikit-learn>=1.4.1,<2.0.0
 # SHAP: use 0.43.x — last version before numba became a hard dependency
