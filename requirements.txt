@@ -47,6 +47,7 @@ evidently>=0.7.0,<0.8.0
 # gradio 4.x only — 5.x is a full rewrite
 gradio>=4.26.0,<5.0.0
 matplotlib>=3.8.0,<4.0.0
+prometheus-client>=0.20.0,<1.0.0
 
 # ── Testing & Quality ─────────────────────────────────────────────────────────
 faker>=24.0.0,<30.0.0
