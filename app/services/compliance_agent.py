@@ -5,12 +5,31 @@ import time
 from typing import Dict, Any, List
 import numpy as np
 from groq import Groq
+from collections import defaultdict
 
 from app.config import settings
 from app.services.vector_store import vector_store
 from app.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
+
+class LLMRateLimiter:
+    """Simple in-memory token bucket rate limiter for Groq API calls."""
+    def __init__(self, max_calls: int = 5, window_seconds: int = 60):
+        self.max_calls = max_calls
+        self.window = window_seconds
+        self._buckets: dict = defaultdict(list)
+
+    def is_allowed(self, user_id: str) -> bool:
+        now = time.time()
+        bucket = self._buckets[user_id]
+        self._buckets[user_id] = [t for t in bucket if now - t < self.window]
+        if len(self._buckets[user_id]) >= self.max_calls:
+            return False
+        self._buckets[user_id].append(now)
+        return True
+
+_llm_limiter = LLMRateLimiter(max_calls=5, window_seconds=60)
 
 class RegGuardComplianceAgent:
     """Agentic regulatory compliance system covering RBI, FEMA, PMLA, and UPI rules.
@@ -27,9 +46,19 @@ class RegGuardComplianceAgent:
         else:
             logger.warning("GROQ_API_KEY not found in environment settings. RegGuard operating in offline template mode.")
 
-    def query_regulations(self, query: str) -> Dict[str, Any]:
+    def query_regulations(self, query: str, username: str = "anonymous") -> Dict[str, Any]:
         """Answers natural-language compliance questions by retrieving context, querying LLaMA, reranking, and caching."""
         start_time = time.perf_counter()
+        
+        # Rate limit checks to protect API quota
+        if not _llm_limiter.is_allowed(username):
+            return {
+                "answer": "Rate limit reached. Please wait 60 seconds before querying again.",
+                "citations": [],
+                "confidence": 0.0,
+                "model_used": "rate_limited",
+                "processing_time_ms": float((time.perf_counter() - start_time) * 1000)
+            }
         
         # 1. Query Redis Cache first to save API tokens
         query_hash = hashlib.sha256(query.strip().encode("utf-8")).hexdigest()
@@ -101,32 +130,20 @@ class RegGuardComplianceAgent:
             model_used = "offline_template"
 
         # 5. Cosine-Similarity Citation Reranking (Post-hoc citation verification)
-        # We compute the cosine similarity between the generated answer and the text chunks
+        # Use TF-IDF cosine scores already computed during search — correct and consistent
         citations = []
         try:
-            answer_vector = vector_store.model.encode(answer, show_progress_bar=False)
             for c in chunks:
-                chunk_text = c["text"]
-                chunk_vector = vector_store.model.encode(chunk_text, show_progress_bar=False)
-                # Compute similarity
-                similarity = float(np.dot(answer_vector, chunk_vector) / (np.linalg.norm(answer_vector) * np.linalg.norm(chunk_vector)))
                 citations.append({
                     "document": c["source"],
                     "section": c["section"],
-                    "relevance_score": similarity,
-                    "chunk_text_preview": chunk_text[:200]
+                    "relevance_score": round(float(c["score"]), 4),
+                    "chunk_text_preview": c["text"][:200]
                 })
-            # Sort citations by relevance score descending
             citations = sorted(citations, key=lambda x: x["relevance_score"], reverse=True)
         except Exception as sim_err:
-            logger.error(f"Post-hoc citation reranking failed: {sim_err}")
-            # Fallback to local vector scores
-            citations = [{
-                "document": c["source"],
-                "section": c["section"],
-                "relevance_score": c["score"],
-                "chunk_text_preview": c["text"][:200]
-            } for c in chunks]
+            logger.error(f"Citation assembly failed: {sim_err}")
+            citations = []
 
         # 6. Calculate Overall Confidence (Mean cosine similarity of citations)
         confidence = float(np.mean([c["relevance_score"] for c in citations])) if citations else 0.0
@@ -173,9 +190,8 @@ class RegGuardComplianceAgent:
                     "clause": "Para 2.1"
                 })
                 
-        # Sweep 2: Check FEMA LRS foreign currency caps (approx ₹2.1 Crore cap = USD 250,000)
-        # We assume USD/INR is approx 84
-        usd_equivalent = amount / 84.0
+        # FEMA check using config-driven USD/INR rate (RBI Reference Rate)
+        usd_equivalent = amount / settings.USD_INR_RATE
         if is_international and usd_equivalent > 250000.0:
             chunks = vector_store.search("FEMA Liberalised Remittance Scheme LRS limit", top_k=1)
             if chunks:

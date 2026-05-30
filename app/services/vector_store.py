@@ -2,6 +2,7 @@ import os
 import json
 import zlib
 import numpy as np
+import threading
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import logging
@@ -27,6 +28,7 @@ class LocalVectorStore:
     """
     def __init__(self):
         logger.info("Initializing TF-IDF vectorizer for regulatory corpus search...")
+        self._lock = threading.Lock()
         self.vectorizer = TfidfVectorizer(
             sublinear_tf=True,
             max_features=20_000,
@@ -134,40 +136,41 @@ class LocalVectorStore:
 
     def add_chunks(self, chunks: List[Dict[str, Any]]):
         """Adds text chunks and re-fits the TF-IDF vectorizer on the full corpus."""
-        logger.info(f"Ingesting {len(chunks)} regulation chunks into TF-IDF store...")
+        with self._lock:
+            logger.info(f"Ingesting {len(chunks)} regulation chunks into TF-IDF store...")
 
-        for chunk in chunks:
-            self.embeddings_db.append({
-                "text": chunk["text"],
-                "source": chunk["source"],
-                "section": chunk["section"],
-            })
+            for chunk in chunks:
+                self.embeddings_db.append({
+                    "text": chunk["text"],
+                    "source": chunk["source"],
+                    "section": chunk["section"],
+                })
 
-        # Re-fit TF-IDF on the entire corpus (incremental update not supported by sklearn)
-        texts = [item["text"] for item in self.embeddings_db]
-        self._tfidf_matrix = self.vectorizer.fit_transform(texts)
-        self._is_fitted = True
+            # Re-fit TF-IDF on the entire corpus (incremental update not supported by sklearn)
+            texts = [item["text"] for item in self.embeddings_db]
+            self._tfidf_matrix = self.vectorizer.fit_transform(texts)
+            self._is_fitted = True
 
-        self._persist()
+            self._persist()
 
-        # Update ChromaDB collection
-        if self.use_chroma:
-            try:
-                logger.info("Updating ChromaDB collection with new chunks...")
-                embeddings = self._tfidf_matrix.toarray().tolist()
-                ids = [f"chunk_{i}" for i in range(len(self.embeddings_db))]
-                metadatas = [{"source": item["source"], "section": item["section"]} for item in self.embeddings_db]
-                self.chroma_collection.upsert(
-                    embeddings=embeddings,
-                    documents=texts,
-                    metadatas=metadatas,
-                    ids=ids
-                )
-                logger.info("ChromaDB persistent collection updated successfully.")
-            except Exception as e:
-                logger.error(f"Failed to update ChromaDB collection: {e}")
+            # Update ChromaDB collection
+            if self.use_chroma:
+                try:
+                    logger.info("Updating ChromaDB collection with new chunks...")
+                    embeddings = self._tfidf_matrix.toarray().tolist()
+                    ids = [f"chunk_{i}" for i in range(len(self.embeddings_db))]
+                    metadatas = [{"source": item["source"], "section": item["section"]} for item in self.embeddings_db]
+                    self.chroma_collection.upsert(
+                        embeddings=embeddings,
+                        documents=texts,
+                        metadatas=metadatas,
+                        ids=ids
+                    )
+                    logger.info("ChromaDB persistent collection updated successfully.")
+                except Exception as e:
+                    logger.error(f"Failed to update ChromaDB collection: {e}")
 
-        logger.info("TF-IDF vectorizer re-fitted on updated corpus.")
+            logger.info("TF-IDF vectorizer re-fitted on updated corpus.")
 
     def search(self, query: str, top_k: int = 4) -> List[Dict[str, Any]]:
         """Returns top_k most relevant chunks using ChromaDB or TF-IDF fallback."""

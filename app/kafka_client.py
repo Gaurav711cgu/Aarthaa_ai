@@ -64,12 +64,12 @@ def get_kafka_producer():
     return MockKafkaProducer()
 
 def test_kafka_connection() -> bool:
-    """Verifies Kafka connectivity (always True for active MockKafkaProducer)."""
-    if is_kafka_active:
-        try:
-            producer = get_kafka_producer()
-            metadata = producer.list_topics(timeout=1.0)
-            return metadata is not None
-        except Exception:
-            return False
-    return True
+    """Returns True ONLY when a real Kafka broker is reachable. MockKafka is explicitly False."""
+    if not is_kafka_active:
+        return False  # MockKafka is not a real connection
+    try:
+        producer = get_kafka_producer()
+        metadata = producer.list_topics(timeout=1.0)
+        return metadata is not None
+    except Exception:
+        return False

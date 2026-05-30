@@ -36,9 +36,12 @@ try:
     is_postgres_active = True
     logger.info("PostgreSQL connection established successfully.")
 except (OperationalError, Exception) as e:
-    # Fallback to local SQLite database if PG is down
+    # Sanitize connection error string to prevent credentials leakage in logs
+    safe_error = str(e).split("\n")[0][:200]
+    if settings.POSTGRES_PASSWORD and settings.POSTGRES_PASSWORD in safe_error:
+        safe_error = safe_error.replace(settings.POSTGRES_PASSWORD, "***")
     logger.warning(
-        f"PostgreSQL connection failed: {e}. Falling back to SQLite local database: {SQLITE_URL}"
+        f"PostgreSQL connection failed ({safe_error}). Falling back to SQLite local database: {SQLITE_URL}"
     )
     engine = create_engine(
         SQLITE_URL,

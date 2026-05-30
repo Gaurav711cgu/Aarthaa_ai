@@ -15,7 +15,12 @@ router = APIRouter(prefix="/finlens", tags=["FinLens"])
 
 # 1. Schemas for Statement Uploads
 class DocumentUploadRequest(BaseModel):
-    raw_text: str = Field(..., description="Raw text extracted from the financial document")
+    raw_text: str = Field(
+        ...,
+        min_length=10,
+        max_length=500_000,  # 500KB max — a 1000-page statement is ~200KB text
+        description="Raw text extracted from the financial document"
+    )
 
 class DocumentUploadResponse(BaseModel):
     statement_id: int
@@ -44,9 +49,11 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(RoleEnforcer("analyst"))
 ):
-    """Ingests a text-based bank statement, parses tables/metadata, and commits to databases."""
+    """Ingests a text-based bank statement, parses tables/metadata, and commits to databases with ownership mapping."""
     try:
-        result = statement_parser.parse_and_store_statement(db, payload.raw_text)
+        result = statement_parser.parse_and_store_statement(
+            db, payload.raw_text, owner_username=current_user["username"]
+        )
         return DocumentUploadResponse(
             statement_id=result["statement_id"],
             bank_name=result["bank_name"],
@@ -72,8 +79,23 @@ async def query_document(
 ):
     """Intercepts numerical questions and translates them into precise SQL to prevent hallucinations."""
     try:
-        result = finlens_engine.answer_numerical_query(db, payload.query, payload.statement_id)
+        # Enforce ownership check before executing query
+        statement = db.query(BankStatement).filter(
+            BankStatement.id == payload.statement_id,
+            BankStatement.owner_username == current_user["username"]
+        ).first()
+        if not statement:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"Statement ID {payload.statement_id} not found."
+            )
+            
+        result = finlens_engine.answer_numerical_query(
+            db, payload.query, payload.statement_id, username=current_user["username"]
+        )
         return DocumentQueryResponse(**result)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to query statement ID {payload.statement_id}: {e}")
         raise HTTPException(
@@ -87,8 +109,11 @@ def get_statement_details(
     db: Session = Depends(get_db), 
     current_user: Dict[str, Any] = Depends(RoleEnforcer("analyst"))
 ):
-    """Retrieves basic metadata and transactional transaction counts for a bank statement."""
-    statement = db.query(BankStatement).filter(BankStatement.id == id).first()
+    """Retrieves basic metadata and transactional transaction counts for a bank statement with ownership checks."""
+    statement = db.query(BankStatement).filter(
+        BankStatement.id == id,
+        BankStatement.owner_username == current_user["username"]
+    ).first()
     if not statement:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Statement ID {id} not found.")
         
@@ -111,9 +136,12 @@ def get_statement_summary(
     db: Session = Depends(get_db), 
     current_user: Dict[str, Any] = Depends(RoleEnforcer("analyst"))
 ):
-    """Generates an automated summary of a bank statement including monthly debits vs credits, and top transaction descriptions."""
+    """Generates an automated summary of a bank statement including monthly debits vs credits, and top transaction descriptions with ownership checks."""
     try:
-        statement = db.query(BankStatement).filter(BankStatement.id == id).first()
+        statement = db.query(BankStatement).filter(
+            BankStatement.id == id,
+            BankStatement.owner_username == current_user["username"]
+        ).first()
         if not statement:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Statement ID {id} not found.")
             

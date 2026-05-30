@@ -68,7 +68,7 @@ async def query_regulations(
 ):
     """Retrieves relevant circulars and generates cited compliance guidelines in real time."""
     try:
-        result = compliance_agent.query_regulations(payload.query)
+        result = compliance_agent.query_regulations(payload.query, username=current_user["username"])
         return RegulationQueryResponse(**result)
     except Exception as e:
         logger.error(f"Failed to query compliance regulations for query '{payload.query}': {e}")

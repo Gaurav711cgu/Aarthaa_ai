@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.database import get_db
-from app.redis_client import test_redis_connection
-from app.kafka_client import test_kafka_connection
+from app.redis_client import test_redis_connection, is_redis_active
+from app.kafka_client import test_kafka_connection, is_kafka_active
 from app.services.monitoring import get_metrics_payload
 from app.services.drift_detector import drift_detector
 from app.api.v1.auth import router as auth_router, get_current_user
@@ -127,19 +127,21 @@ def health_check(request: Request, db: Session = Depends(get_db)):
     
     # 2. Verify Redis cache connection
     redis_alive = test_redis_connection()
+    redis_status = "healthy" if redis_alive else ("mock_active" if not is_redis_active else "unreachable")
     
     # 3. Verify Kafka broker stream connection
     kafka_alive = test_kafka_connection()
+    kafka_status = "healthy" if kafka_alive else ("mock_active" if not is_kafka_active else "unreachable")
     
-    overall_status = "healthy" if (pg_alive and redis_alive and kafka_alive) else "degraded"
+    overall_status = "healthy" if (pg_alive and redis_status == "healthy" and kafka_status == "healthy") else "degraded"
     
     health_status = {
         "status": overall_status,
         "timestamp": time.time(),
         "services": {
             "postgres": "healthy" if pg_alive else "unreachable",
-            "redis": "healthy" if redis_alive else "unreachable",
-            "kafka": "healthy" if kafka_alive else "unreachable"
+            "redis": redis_status,
+            "kafka": kafka_status
         }
     }
     

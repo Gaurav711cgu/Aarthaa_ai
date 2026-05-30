@@ -97,3 +97,19 @@ def test_finlens_sql_agent_execution(mock_create_agent, mock_toolkit, mock_chat_
         assert result["numerical_value"] == 159200.0
         assert "Closing Balance" in result["answer"]
         assert result["audit_status"] == "VERIFIED_VIA_SQL_DATABASE"
+
+def test_finlens_query_rate_limiter():
+    """Verify that repeated queries to FinLens are rate-limited after exceedance limits."""
+    engine = FinLensQueryEngine()
+    mock_db = MagicMock()
+    
+    # We call it 5 times within 1 second, it should be fine
+    for _ in range(5):
+        result = engine.answer_numerical_query(mock_db, "Show me my closing balance", statement_id=1, username="test_rate_user")
+        assert result["audit_status"] != "RATE_LIMITED"
+        
+    # The 6th call should trigger the rate-limiter
+    limit_result = engine.answer_numerical_query(mock_db, "Show me my closing balance", statement_id=1, username="test_rate_user")
+    assert limit_result["audit_status"] == "RATE_LIMITED"
+    assert "Rate limit reached" in limit_result["answer"]
+

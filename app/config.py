@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     READONLY_USERNAME: str = "readonly"
     READONLY_PASSWORD: str = "readonly_password_2026"
 
+    USD_INR_RATE: float = 84.0  # Update quarterly. Source: RBI reference rate.
+    USD_INR_RATE_DATE: str = "2026-05-01"
+
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
 
     GROQ_API_KEY: Optional[str] = None

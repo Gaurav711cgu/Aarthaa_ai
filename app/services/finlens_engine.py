@@ -2,6 +2,7 @@ import logging
 import re
 import time
 from typing import Dict, Any, List
+from collections import defaultdict
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from langchain_groq import ChatGroq
@@ -14,6 +15,25 @@ from app.config import settings
 from app.database import engine
 
 logger = logging.getLogger(__name__)
+
+class LLMRateLimiter:
+    """Simple in-memory token bucket rate limiter for Groq API calls."""
+    def __init__(self, max_calls: int = 5, window_seconds: int = 60):
+        self.max_calls = max_calls
+        self.window = window_seconds
+        self._buckets: dict = defaultdict(list)
+
+    def is_allowed(self, user_id: str) -> bool:
+        now = time.time()
+        bucket = self._buckets[user_id]
+        self._buckets[user_id] = [t for t in bucket if now - t < self.window]
+        if len(self._buckets[user_id]) >= self.max_calls:
+            return False
+        self._buckets[user_id].append(now)
+        return True
+
+_llm_limiter = LLMRateLimiter(max_calls=5, window_seconds=60)
+
 
 class SQLQueryTracker(BaseCallbackHandler):
     """Custom callback handler to capture the exact SQL query executed by the LangChain agent."""
@@ -75,15 +95,40 @@ class FinLensQueryEngine:
         else:
             logger.warning("GROQ_API_KEY not found. FinLens operating in offline keyword-routing mode.")
 
-    def answer_numerical_query(self, db: Session, query: str, statement_id: int) -> Dict[str, Any]:
+    def _sanitize_query(self, query: str) -> str:
+        """Strip characters that could be used for prompt injection."""
+        # Remove SQL comment sequences, semicolons, and control characters
+        cleaned = re.sub(r"(--|;|/\*|\*/|xp_|EXEC\s|DROP\s|INSERT\s|UPDATE\s|DELETE\s)", 
+                         "", query, flags=re.IGNORECASE)
+        # Truncate to prevent context window stuffing attacks
+        return cleaned[:500].strip()
+
+    def answer_numerical_query(self, db: Session, query: str, statement_id: int, username: str = "anonymous") -> Dict[str, Any]:
         """Intercepts numerical questions and translates them into precise SQL to prevent hallucinations."""
+        # Enforce rate limit check to protect LLM quota
+        if not _llm_limiter.is_allowed(username):
+            logger.warning(f"FinLens query rate limited for user: {username}")
+            return {
+                "answer": "Rate limit reached. Please wait 60 seconds before querying again.",
+                "numerical_value": 0.0,
+                "compiled_sql": "",
+                "audit_status": "RATE_LIMITED"
+            }
+
+        # Validate statement_id is a genuine integer (no injection)
+        if not isinstance(statement_id, int) or statement_id < 1:
+            raise ValueError("Invalid statement_id")
+        
+        # Sanitize free-text query before sending to LLM
+        safe_query = self._sanitize_query(query)
+        
         # 1. Online LangChain SQL Agent Path
         if self.agent_executor:
             try:
                 tracker = SQLQueryTracker()
                 prompt = (
                     f"Analyze my bank transactions where statement_id = {statement_id}. "
-                    f"Compute the exact mathematical answer for: '{query}'."
+                    f"Compute the exact mathematical answer for: '{safe_query}'."
                 )
                 logger.info(f"FinLens SQL Agent invoking with prompt: '{prompt}'")
                 
@@ -123,7 +168,7 @@ class FinLensQueryEngine:
 
         # 2. Offline Fallback (High-fidelity 15+ pattern matching keyword router)
         logger.warning("FinLens running in offline keyword-routing mode")
-        query_lower = query.lower()
+        query_lower = safe_query.lower()
         sql_query = ""
         params = {"statement_id": statement_id}
         verdict_label = ""

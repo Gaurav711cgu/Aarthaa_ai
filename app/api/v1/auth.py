@@ -25,15 +25,39 @@ ALGORITHM = "HS256"
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-# Dynamic user database mapped to settings configuration (zero hardcoding in source)
-def get_users_db() -> Dict[str, Dict[str, str]]:
-    return {
-        settings.ADMIN_USERNAME: {"password_hash": hash_password(settings.ADMIN_PASSWORD), "role": "admin"},
-        settings.ANALYST_USERNAME: {"password_hash": hash_password(settings.ANALYST_PASSWORD), "role": "analyst"},
-        settings.READONLY_USERNAME: {"password_hash": hash_password(settings.READONLY_PASSWORD), "role": "readonly"},
-    }
+import os
 
-USERS_DB = get_users_db()
+def _build_users_db() -> dict:
+    """Loads user credentials from environment variables only. Never from source."""
+    users = {}
+    for role in ["admin", "analyst", "readonly"]:
+        username_key = f"ARTHA_{role.upper()}_USERNAME"
+        password_key = f"ARTHA_{role.upper()}_PASSWORD"
+        username = os.getenv(username_key)
+        password = os.getenv(password_key)
+        if username and password:
+            users[username] = {
+                "password_hash": hash_password(password),
+                "role": role
+            }
+        else:
+            logger.warning(f"Credentials for role '{role}' not set in environment.")
+            
+    if not users:
+        if settings.ENV != "production":
+            logger.info("Local environment detected. Populating USERS_DB from settings defaults.")
+            return {
+                settings.ADMIN_USERNAME: {"password_hash": hash_password(settings.ADMIN_PASSWORD), "role": "admin"},
+                settings.ANALYST_USERNAME: {"password_hash": hash_password(settings.ANALYST_PASSWORD), "role": "analyst"},
+                settings.READONLY_USERNAME: {"password_hash": hash_password(settings.READONLY_PASSWORD), "role": "readonly"},
+            }
+        raise RuntimeError(
+            "STARTUP FAILURE: No user credentials configured. "
+            "Set ARTHA_ADMIN_USERNAME, ARTHA_ADMIN_PASSWORD, etc. in environment."
+        )
+    return users
+
+USERS_DB = _build_users_db()
 
 class TokenRequest(BaseModel):
     username: str = Field(..., json_schema_extra={"example": "analyst"})

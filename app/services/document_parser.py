@@ -16,7 +16,7 @@ class BankStatementParser:
     def __init__(self):
         pass
 
-    def parse_and_store_statement(self, db: Session, raw_text: str) -> Dict[str, Any]:
+    def parse_and_store_statement(self, db: Session, raw_text: str, owner_username: str = "anonymous") -> Dict[str, Any]:
         """Parses raw text or CSV bank statements, normalizes columns, and saves to database."""
         logger.info("Starting statement parsing pipeline...")
         
@@ -154,6 +154,7 @@ class BankStatementParser:
         
         # 3. Save to database using SQL Session
         statement_record = BankStatement(
+            owner_username=owner_username,
             account_number=account_number,
             bank_name=bank_name,
             total_deposits=total_deposits,
