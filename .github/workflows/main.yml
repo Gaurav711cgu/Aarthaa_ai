@@ -71,8 +71,18 @@ jobs:
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        git config --global user.email "gauravkumarnayak@gmail.com"
-        git config --global user.name "Gaurav Kumar Nayak"
-        git remote add hf https://Gaurav711:$HF_TOKEN@huggingface.co/spaces/Gaurav711/Artha_ai || true
-        git push -f hf main
+        pip install huggingface_hub
+        python -c "
+        import os
+        from huggingface_hub import HfApi
+        api = HfApi()
+        api.upload_folder(
+            folder_path='.',
+            repo_id='Gaurav711/Artha_ai',
+            repo_type='space',
+            token=os.environ['HF_TOKEN'],
+            ignore_patterns=['.git', '.venv*', '__pycache__', '*.pyc', 'coverage.xml']
+        )
+        "
+
 
