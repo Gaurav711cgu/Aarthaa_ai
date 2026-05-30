@@ -1,5 +1,6 @@
 import os
-import pickle
+import joblib
+import hashlib
 import numpy as np
 import pandas as pd
 import shap
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Derive paths dynamically based on the file location for full ecosystem portability
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MODEL_PATH = os.path.join(BASE_DIR, "app", "models", "fraud_model.pkl")
+MODEL_PATH = os.path.join(BASE_DIR, "app", "models", "fraud_model.joblib")
 
 class FraudScoringEngine:
     """Production-grade transaction fraud scoring engine utilizing RandomForest + Isolation Forest.
@@ -34,8 +35,27 @@ class FraudScoringEngine:
         """Loads serialized model files or defaults to heuristic scoring if files are missing."""
         if os.path.exists(MODEL_PATH):
             try:
+                # Anti-tampering gate: Verify SHA-256 model checksum before loading
+                hash_path = MODEL_PATH + ".sha256"
+                if not os.path.exists(hash_path):
+                    raise RuntimeError(f"Integrity check failed: Checksum file {hash_path} is missing.")
+                
+                with open(hash_path, "r") as hf:
+                    expected_hash = hf.read().strip()
+                
+                sha256_hash = hashlib.sha256()
                 with open(MODEL_PATH, "rb") as f:
-                    ensemble = pickle.load(f)
+                    for byte_block in iter(lambda: f.read(4096), b""):
+                        sha256_hash.update(byte_block)
+                current_hash = sha256_hash.hexdigest()
+                
+                if current_hash != expected_hash:
+                    logger.error(f"CRITICAL MODEL INTEGRITY FAILURE: Expected hash {expected_hash}, got {current_hash}.")
+                    raise RuntimeError("Model file hash mismatch — possible tampering detected.")
+                
+                logger.info("Model SHA-256 checksum successfully verified.")
+                
+                ensemble = joblib.load(MODEL_PATH)
                 self.rf_model = ensemble["rf"]
                 self.iforest = ensemble["iforest"]
                 self.features = ensemble["features"]

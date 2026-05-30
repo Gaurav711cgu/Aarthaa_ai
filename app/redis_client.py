@@ -42,13 +42,23 @@ redis_pool = None
 is_redis_active = False
 
 try:
-    redis_pool = redis.ConnectionPool(
-        host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
-        decode_responses=True,
-        max_connections=50,
-        socket_timeout=1.0  # Fail fast within 1s
-    )
+    if settings.REDIS_URL:
+        logger.info("Attempting connection to Redis via REDIS_URL...")
+        redis_pool = redis.ConnectionPool.from_url(
+            settings.REDIS_URL,
+            decode_responses=True,
+            max_connections=50,
+            socket_timeout=1.0  # Fail fast within 1s
+        )
+    else:
+        logger.info("Attempting connection to Redis via host/port...")
+        redis_pool = redis.ConnectionPool(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            decode_responses=True,
+            max_connections=50,
+            socket_timeout=1.0  # Fail fast within 1s
+        )
     # Active connection test ping
     client = redis.Redis(connection_pool=redis_pool)
     client.ping()

@@ -125,7 +125,7 @@ log_success "All python packages installed successfully."
 # ----------------------------------------------------
 log_info "Validating intelligence pipelines..."
 
-MODEL_FILE="app/models/fraud_model.pkl"
+MODEL_FILE="app/models/fraud_model.joblib"
 EMBEDDINGS_FILE="app/models/reg_embeddings.json"
 
 if [ ! -f "${MODEL_FILE}" ]; then

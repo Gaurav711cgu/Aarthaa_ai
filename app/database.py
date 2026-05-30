@@ -7,7 +7,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Primary PostgreSQL URL
-PG_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+if settings.DATABASE_URL:
+    PG_URL = settings.DATABASE_URL
+    if PG_URL.startswith("postgres://"):
+        PG_URL = PG_URL.replace("postgres://", "postgresql://", 1)
+else:
+    PG_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+
 # Fallback SQLite URL
 SQLITE_URL = "sqlite:///artha_local.db"
 

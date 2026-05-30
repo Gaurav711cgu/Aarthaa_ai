@@ -24,6 +24,9 @@ venv/
 app/models/*.pkl
 app/models/*.bin
 app/models/*.onnx
+app/models/*.joblib
+app/models/*.sha256
+data/chroma_db/
 
 # System files
 .DS_Store

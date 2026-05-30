@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
 
+    DATABASE_URL: Optional[str] = None
+    REDIS_URL: Optional[str] = None
+
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "admin_password_2026"
+    ANALYST_USERNAME: str = "analyst"
+    ANALYST_PASSWORD: str = "analyst_password_2026"
+    READONLY_USERNAME: str = "readonly"
+    READONLY_PASSWORD: str = "readonly_password_2026"
+
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
 
     GROQ_API_KEY: Optional[str] = None

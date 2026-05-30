@@ -1,5 +1,6 @@
 import os
-import pickle
+import joblib
+import hashlib
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -118,7 +119,7 @@ def train_and_save_ensemble():
     model_dir = os.path.join(base_dir, "app", "models")
     os.makedirs(model_dir, exist_ok=True)
     
-    model_path = os.path.join(model_dir, "fraud_model.pkl")
+    model_path = os.path.join(model_dir, "fraud_model.joblib")
     logger.info(f"Saving models package to {model_path}...")
     
     # Save ensemble structure
@@ -133,9 +134,21 @@ def train_and_save_ensemble():
         }
     }
     
-    with open(model_path, "wb") as f:
-        pickle.dump(ensemble, f)
+    # Secure serialization using joblib
+    joblib.dump(ensemble, model_path)
+    
+    # Compute SHA-256 integrity hash of the generated joblib file
+    sha256_hash = hashlib.sha256()
+    with open(model_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+            
+    hash_hex = sha256_hash.hexdigest()
+    hash_path = model_path + ".sha256"
+    with open(hash_path, "w") as hf:
+        hf.write(hash_hex)
         
+    logger.info(f"SHA-256 model checksum computed and saved: {hash_hex}")
     logger.info("Models saved successfully. Training completed successfully.")
 
 if __name__ == "__main__":

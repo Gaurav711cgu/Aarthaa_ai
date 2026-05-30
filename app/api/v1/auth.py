@@ -22,15 +22,18 @@ security_scheme = HTTPBearer(auto_error=False)
 CURRENT_SIGNING_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 
-# Static user database (username -> hash of password & role)
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-USERS_DB = {
-    "admin": {"password_hash": hash_password("admin_password_2026"), "role": "admin"},
-    "analyst": {"password_hash": hash_password("analyst_password_2026"), "role": "analyst"},
-    "readonly": {"password_hash": hash_password("readonly_password_2026"), "role": "readonly"},
-}
+# Dynamic user database mapped to settings configuration (zero hardcoding in source)
+def get_users_db() -> Dict[str, Dict[str, str]]:
+    return {
+        settings.ADMIN_USERNAME: {"password_hash": hash_password(settings.ADMIN_PASSWORD), "role": "admin"},
+        settings.ANALYST_USERNAME: {"password_hash": hash_password(settings.ANALYST_PASSWORD), "role": "analyst"},
+        settings.READONLY_USERNAME: {"password_hash": hash_password(settings.READONLY_PASSWORD), "role": "readonly"},
+    }
+
+USERS_DB = get_users_db()
 
 class TokenRequest(BaseModel):
     username: str = Field(..., json_schema_extra={"example": "analyst"})
