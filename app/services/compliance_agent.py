@@ -2,7 +2,7 @@ import logging
 import hashlib
 import json
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any
 import numpy as np
 from groq import Groq
 from collections import defaultdict
