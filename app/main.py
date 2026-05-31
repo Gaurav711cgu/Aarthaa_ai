@@ -157,5 +157,25 @@ def metrics():
     data, content_type = get_metrics_payload()
     return Response(content=data, media_type=content_type)
 
-# Mount the interactive Gradio dashboard UI directly on root (/) path
-app = gr.mount_gradio_app(app, build_dashboard(), path="/")
+from fastapi.responses import RedirectResponse
+
+@app.get("/")
+def read_root(request: Request):
+    """Headless API root. Browser agents are seamlessly redirected to the premium Next.js Vercel frontend, while API clients receive professional metadata."""
+    user_agent = request.headers.get("user-agent", "").lower()
+    if "mozilla" in user_agent or "chrome" in user_agent or "safari" in user_agent:
+        return RedirectResponse(url=settings.FRONTEND_URL)
+    return {
+        "gateway": "Artha AI Unified API Gateway",
+        "status": "online",
+        "version": "2.0.0",
+        "documentation": "/docs",
+        "endpoints": {
+            "fraud_scoring": "/api/v1/analyze",
+            "compliance_audit": "/api/v1/compliance/check",
+            "statement_parsing": "/api/v1/finlens/upload"
+        }
+    }
+
+# Mount the interactive Gradio dashboard UI on a hidden subpath
+app = gr.mount_gradio_app(app, build_dashboard(), path="/admin-dashboard-hidden")

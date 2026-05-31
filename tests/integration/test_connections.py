@@ -4,11 +4,23 @@ from app.main import app
 client = TestClient(app)
 
 def test_read_root():
-    """Verify core API routing and Gradio dashboard output."""
+    """Verify core API routing, headless JSON API output, browser redirects, and Gradio hidden endpoint."""
+    # 1. Programmatic access (Default TestClient has no browser User-Agent)
     response = client.get("/")
     assert response.status_code == 200
-    assert "text/html" in response.headers["content-type"]
-    assert "ARTHA AI" in response.text
+    assert "application/json" in response.headers["content-type"]
+    assert response.json()["gateway"] == "Artha AI Unified API Gateway"
+
+    # 2. Browser access (Should trigger 307 Redirect)
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    response_redirect = client.get("/", headers=headers, follow_redirects=False)
+    assert response_redirect.status_code == 307
+
+    # 3. Hidden dashboard access (Should return Gradio HTML)
+    response_ui = client.get("/admin-dashboard-hidden")
+    assert response_ui.status_code == 200
+    assert "text/html" in response_ui.headers["content-type"]
+
 
 
 def test_health_check_endpoint():

@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
 
+    # Redirection target for browser visitors accessing the headless API root
+    FRONTEND_URL: str = "https://gaurav-portfolio-iycu.vercel.app/"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
