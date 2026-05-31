@@ -1,7 +1,7 @@
 import os
 import json
 import zlib
-import numpy as np
+
 import threading
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
