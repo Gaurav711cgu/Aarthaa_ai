@@ -1,7 +1,7 @@
 import logging
 import re
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any,
 from collections import defaultdict
 from sqlalchemy.orm import Session
 from sqlalchemy import text
