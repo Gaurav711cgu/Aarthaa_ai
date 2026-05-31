@@ -12,7 +12,6 @@ from app.kafka_client import get_kafka_producer
 
 logger = logging.getLogger(__name__)
 
-# Derive paths dynamically
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BASELINE_PATH = os.path.join(BASE_DIR, "data", "baseline_transactions.csv")
 
@@ -23,11 +22,10 @@ class DataDriftDetector:
     """
     def __init__(self, window_size: int = 100):
         self.window_size = window_size
-        self.amount_window = deque(maxlen=window_size)
-        self.velocity_window = deque(maxlen=window_size)
+        self.amount_window: deque = deque(maxlen=window_size)
+        self.velocity_window: deque = deque(maxlen=window_size)
         self.last_report = None
         
-        # Load baseline dataset
         if os.path.exists(BASELINE_PATH):
             try:
                 self.baseline_df = pd.read_csv(BASELINE_PATH)
@@ -54,7 +52,6 @@ class DataDriftDetector:
         
         drift_results = {"amount_drift": 0.0, "velocity_drift": 0.0, "dataset_drift": False}
         
-        # Perform evaluations once rolling windows accumulate sufficient data points
         if len(self.amount_window) >= 10:
             try:
                 current_df = pd.DataFrame({
@@ -62,7 +59,6 @@ class DataDriftDetector:
                     "velocity_1h": list(self.velocity_window)
                 })
                 
-                # Run evidently report
                 report = Report(metrics=[DataDriftPreset()])
                 report.run(
                     reference_data=self.baseline_df[["amount", "velocity_1h"]],
@@ -72,7 +68,6 @@ class DataDriftDetector:
                 
                 report_dict = report.as_dict()
                 
-                # Extract results
                 drift_table = None
                 for metric_res in report_dict.get("metrics", []):
                     if metric_res.get("metric") == "DataDriftTable":
@@ -82,16 +77,13 @@ class DataDriftDetector:
                 if drift_table:
                     res_cols = drift_table["result"]["drift_by_columns"]
                     
-                    # Statistical test p_value is returned as drift_score
                     amount_p_val = res_cols["amount"].get("drift_score", 1.0)
                     velocity_p_val = res_cols["velocity_1h"].get("drift_score", 1.0)
                     
-                    # Convert p_values to drift scores (1 - p_value) so small p_value = high drift
                     amount_drift_score = float(1.0 - amount_p_val)
                     velocity_drift_score = float(1.0 - velocity_p_val)
                     dataset_drift = bool(drift_table["result"].get("dataset_drift", False))
                     
-                    # Update Prometheus Gauges
                     DATA_DRIFT_SCORE.labels(feature_name="amount").set(amount_drift_score)
                     DATA_DRIFT_SCORE.labels(feature_name="velocity_1h").set(velocity_drift_score)
                     
@@ -99,7 +91,6 @@ class DataDriftDetector:
                     drift_results["velocity_drift"] = velocity_drift_score
                     drift_results["dataset_drift"] = dataset_drift
                     
-                    # Trigger warning notifications and publish drift events to Kafka when drift exceeds threshold
                     if amount_drift_score > 0.6 or velocity_drift_score > 0.6:
                         logger.warning(
                             f"DATA DRIFT ALERT: Transaction distributions have shifted! "
@@ -132,7 +123,6 @@ class DataDriftDetector:
     def get_drift_report_html_base64(self) -> str:
         """Generates the latest Evidently HTML report and encodes it in base64."""
         if self.last_report is None:
-            # Generate a report with whatever data we currently have
             try:
                 current_df = pd.DataFrame({
                     "amount": list(self.amount_window) if self.amount_window else [0.0],
@@ -149,6 +139,8 @@ class DataDriftDetector:
                 return ""
                 
         try:
+            if self.last_report is None:
+                return ""
             html_content = self.last_report.get_html()
             import base64
             return base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
