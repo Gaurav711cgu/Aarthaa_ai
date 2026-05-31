@@ -43,9 +43,7 @@ class SQLQueryTracker(BaseCallbackHandler):
 
     def on_tool_start(self, serialized: dict, input_str: str, **kwargs) -> None:
         name = serialized.get("name", "")
-        # Capture the query input sent to the SQL query executor tool
         if "sql_db_query" in name or "sql" in name:
-            # Clean up input_str if it is passed as a dict/JSON string
             cleaned_query = input_str.strip()
             if cleaned_query.startswith("{") and "query" in cleaned_query:
                 try:
@@ -63,17 +61,14 @@ class FinLensQueryEngine:
         self.agent_executor = None
         if settings.GROQ_API_KEY:
             try:
-                # Bind LangChain SQLDatabase directly to our active SQLAlchemy engine (works for PG and SQLite)
                 self.db = SQLDatabase(engine)
-                # Initialize Groq LLaMA model
                 self.llm = ChatGroq(
-                    model="llama-3.1-8b-instant", # Faster model suited for code/SQL execution tasks
+                    model="llama-3.1-8b-instant",
                     temperature=0.0,
                     api_key=settings.GROQ_API_KEY
                 )
                 self.toolkit = SQLDatabaseToolkit(db=self.db, llm=self.llm)
                 
-                # Setup custom prompt injection
                 suffix = (
                     "Only query the 'statement_transactions' table. "
                     "You must strictly filter the transactions where statement_id is equal to the specified statement_id. "
@@ -97,15 +92,12 @@ class FinLensQueryEngine:
 
     def _sanitize_query(self, query: str) -> str:
         """Strip characters that could be used for prompt injection."""
-        # Remove SQL comment sequences, semicolons, and control characters
-        cleaned = re.sub(r"(--|;|/\*|\*/|xp_|EXEC\s|DROP\s|INSERT\s|UPDATE\s|DELETE\s)", 
+        cleaned = re.sub(r"(--|;|/\*|\*/|xp_|EXEC\s|DROP\s|INSERT\s|UPDATE\s|DELETE\s)",
                          "", query, flags=re.IGNORECASE)
-        # Truncate to prevent context window stuffing attacks
         return cleaned[:500].strip()
 
     def answer_numerical_query(self, db: Session, query: str, statement_id: int, username: str = "anonymous") -> Dict[str, Any]:
         """Intercepts numerical questions and translates them into precise SQL to prevent hallucinations."""
-        # Enforce rate limit check to protect LLM quota
         if not _llm_limiter.is_allowed(username):
             logger.warning(f"FinLens query rate limited for user: {username}")
             return {
@@ -115,11 +107,9 @@ class FinLensQueryEngine:
                 "audit_status": "RATE_LIMITED"
             }
 
-        # Validate statement_id is a genuine integer (no injection)
         if not isinstance(statement_id, int) or statement_id < 1:
             raise ValueError("Invalid statement_id")
         
-        # Sanitize free-text query before sending to LLM
         safe_query = self._sanitize_query(query)
         
         # 1. Online LangChain SQL Agent Path
@@ -132,16 +122,13 @@ class FinLensQueryEngine:
                 )
                 logger.info(f"FinLens SQL Agent invoking with prompt: '{prompt}'")
                 
-                # Execute agent with callback tracker
                 result = self.agent_executor.invoke(
                     {"input": prompt},
                     {"callbacks": [tracker]}
                 )
                 answer = result.get("output", "")
                 
-                # Extract numerical value via regex
                 numerical_value = 0.0
-                # Look for monetary value matches (₹1,500.00 or 1500)
                 monetary_matches = re.findall(r"(?:₹|INR|Rs\.?)\s*([\d,]+\.?\d*)", answer)
                 if not monetary_matches:
                     monetary_matches = re.findall(r"(\d[\d,]*\.?\d*)", answer)
@@ -152,9 +139,7 @@ class FinLensQueryEngine:
                     except ValueError:
                         pass
                 
-                # Clean up compiled SQL query
                 compiled_sql = tracker.queries[-1] if tracker.queries else "SELECT amount FROM statement_transactions WHERE statement_id = :statement_id"
-                # Strip markdown syntax if returned
                 compiled_sql = compiled_sql.replace("```sql", "").replace("```", "").strip()
                 
                 return {
@@ -170,10 +155,9 @@ class FinLensQueryEngine:
         logger.warning("FinLens running in offline keyword-routing mode")
         query_lower = safe_query.lower()
         sql_query = ""
-        params = {"statement_id": statement_id}
+        params: Dict[str, Any] = {"statement_id": statement_id}
         verdict_label = ""
         
-        # 15+ Pattern Auditing Tree
         if any(term in query_lower for term in ["closing balance", "final balance", "ending balance", "current balance"]):
             sql_query = "SELECT balance FROM statement_transactions WHERE statement_id = :statement_id ORDER BY id DESC LIMIT 1"
             verdict_label = "Closing Balance"
