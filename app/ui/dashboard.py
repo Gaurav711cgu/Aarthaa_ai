@@ -1,12 +1,10 @@
 import gradio as gr
-import json
 import logging
 import uuid
-import time
-import base64
 import pandas as pd
 import matplotlib.pyplot as plt
-from typing import Dict, Any
+from evidently.legacy.report import Report
+from evidently.legacy.metric_preset import DataDriftPreset
 
 from app.database import SessionLocal
 from app.models.statement import BankStatement
@@ -69,7 +67,7 @@ def generate_shap_plot(shap_values: dict) -> plt.Figure:
     # Elegant color palette: Red for positive (risk increasing), Teal for negative (risk reducing)
     colors = ['#EF4444' if v >= 0 else '#10B981' for v in values]
     
-    bars = ax.barh(names, values, color=colors, height=0.6, edgecolor='none')
+    ax.barh(names, values, color=colors, height=0.6, edgecolor='none')
     
     # Add vertical baseline
     ax.axvline(0, color='rgba(255,255,255,0.2)', linestyle='--', linewidth=0.8)
