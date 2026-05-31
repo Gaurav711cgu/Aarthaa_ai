@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 import hashlib
 import secrets
@@ -24,8 +25,6 @@ ALGORITHM = "HS256"
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
-
-import os
 
 def _build_users_db() -> dict:
     """Loads user credentials from environment variables only. Never from source."""
@@ -123,7 +122,6 @@ class RoleEnforcer:
     """Custom dependency that checks if the logged in user satisfies a role constraint."""
     def __init__(self, required_role: str):
         self.required_role = required_role
-        # Mapping roles to permission tiers: admin > analyst > readonly
         self.role_hierarchy = {"admin": 3, "analyst": 2, "readonly": 1}
 
     def __call__(self, current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
@@ -153,7 +151,6 @@ def login_for_access_token(request: TokenRequest):
             headers={"WWW-Authenticate": "Bearer"},
         )
         
-    # Generate token payload
     token_data = {
         "sub": request.username,
         "role": user["role"]
@@ -164,7 +161,6 @@ def login_for_access_token(request: TokenRequest):
 @router.post("/refresh", response_model=TokenResponse)
 def refresh_token(request: RefreshRequest):
     """Refreshes a valid access token."""
-    # To keep things secure, we decode the existing token to make sure it's valid
     user_info = verify_token(request.refresh_token)
     token_data = {
         "sub": user_info["username"],
