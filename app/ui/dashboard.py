@@ -59,20 +59,16 @@ def generate_shap_plot(shap_values: dict) -> plt.Figure:
     fig, ax = plt.subplots(figsize=(6, 3.2), facecolor='#1E293B')
     ax.set_facecolor('#1E293B')
     
-    # Sort features by absolute contribution
     sorted_feats = sorted(shap_values.items(), key=lambda x: abs(x[1]))
     names = [f[0].replace("_", " ").title() for f in sorted_feats]
     values = [f[1] for f in sorted_feats]
     
-    # Elegant color palette: Red for positive (risk increasing), Teal for negative (risk reducing)
     colors = ['#EF4444' if v >= 0 else '#10B981' for v in values]
     
     ax.barh(names, values, color=colors, height=0.6, edgecolor='none')
     
-    # Add vertical baseline
     ax.axvline(0, color='rgba(255,255,255,0.2)', linestyle='--', linewidth=0.8)
     
-    # Customize axis styling
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_color('rgba(255,255,255,0.2)')
@@ -99,10 +95,8 @@ def run_fraud_scoring(amount: float, hour: int, velocity: int, distance: float, 
         "user_id": str(uuid.uuid4())
     }
     
-    # Hook drift check
     drift_detector.check_drift(amount, velocity)
     
-    # Run scoring
     res = fraud_engine.score_transaction(tx_dict)
     
     prob = res["fraud_probability"]
@@ -111,7 +105,6 @@ def run_fraud_scoring(amount: float, hour: int, velocity: int, distance: float, 
     shap_vals = res["shap_values"]
     source = res["model_source"]
     
-    # Create HTML stylized badge
     color_map = {
         "LOW": "#10B981",
         "MEDIUM": "#F59E0B",
@@ -138,7 +131,7 @@ def run_fraud_scoring(amount: float, hour: int, velocity: int, distance: float, 
 
 def run_compliance_query(query: str):
     """Callback for RegGuard compliance Q&A."""
-    res = compliance_agent.query_compliance(query)
+    res = compliance_agent.query_regulations(query)
     
     answer = res["answer"]
     citations = res.get("citations", [])
@@ -146,7 +139,6 @@ def run_compliance_query(query: str):
     model = res.get("model_used", "Offline")
     time_ms = res.get("processing_time_ms", 0.0)
     
-    # Format Citations as a Markdown table
     citation_text = ""
     if citations:
         citation_text = "### 📚 Retrieved Regulatory Citations\n\n| Document | Section | Relevance Score | Extract Preview |\n| :--- | :--- | :--- | :--- |\n"
@@ -180,7 +172,6 @@ def upload_statement_callback(file_obj):
         try:
             res = statement_parser.parse_and_store_statement(db, content)
             
-            # Re-fetch statement list for dropdown
             statements = db.query(BankStatement).all()
             choices = [f"ID {s.id} - {s.bank_name} (Ending Balance: ₹{s.ending_balance:,.2f})" for s in statements]
             
@@ -208,7 +199,6 @@ def run_statement_query(dropdown_val: str, query: str):
         return "Please upload a bank statement first.", "", "No Query Executed"
         
     try:
-        # Extract statement ID
         statement_id = int(dropdown_val.split(" ")[1])
         
         db = SessionLocal()
@@ -232,13 +222,11 @@ def run_statement_query(dropdown_val: str, query: str):
 
 def check_monitoring_drift():
     """Callback for Monitoring drift analysis."""
-    # Read the current rolling window and trigger a report
     current_df = pd.DataFrame({
         "amount": list(drift_detector.amount_window) if drift_detector.amount_window else [0.0],
         "velocity_1h": list(drift_detector.velocity_window) if drift_detector.velocity_window else [1]
     })
     
-    # Run report
     report = Report(metrics=[DataDriftPreset()])
     report.run(
         reference_data=drift_detector.baseline_df[["amount", "velocity_1h"]],
@@ -263,7 +251,6 @@ def check_monitoring_drift():
         velocity_score = 1.0 - res_cols["velocity_1h"].get("drift_score", 1.0)
         dataset_drift = drift_table["result"].get("dataset_drift", False)
         
-    # Build a nice markdown display
     summary_md = f"""
     ### 📊 Live Data Drift Summary (Evidently AI)
     
@@ -276,7 +263,6 @@ def check_monitoring_drift():
     * **Current Sample Window Size:** `{len(current_df)} / 100` (evaluations require >= 10 rows)
     """
     
-    # Base64 iframe report
     report_base64 = drift_detector.get_drift_report_html_base64()
     iframe_html = f"""
     <iframe src="data:text/html;base64,{report_base64}" width="100%" height="800px" style="border:1px solid rgba(255,255,255,0.1); border-radius:8px; background-color:white;"></iframe>
@@ -288,7 +274,6 @@ def check_monitoring_drift():
 
 def build_dashboard():
     """Initializes the unified Gradio blocks dashboard with structured premium layouts."""
-    # Fetch existing statements to pre-populate dropdown
     db = SessionLocal()
     try:
         statements = db.query(BankStatement).all()
@@ -307,7 +292,6 @@ def build_dashboard():
         """)
         
         with gr.Tabs():
-            # Tab 1: FraudSense
             with gr.Tab("🧠 FraudSense Real-Time Scoring"):
                 gr.Markdown("### Real-Time Transaction Anomaly & Fraud Assessment")
                 with gr.Row():
@@ -319,7 +303,6 @@ def build_dashboard():
                         distance = gr.Number(label="Distance from Cardholder Address (km)", value=5.0)
                         merchant_risk = gr.Slider(label="Merchant Risk Index", minimum=0.0, maximum=1.0, value=0.05, step=0.01)
                         channel = gr.Dropdown(label="Processing Channel", choices=["UPI", "CASH", "CARD"], value="UPI")
-                        
                         score_btn = gr.Button("Evaluate Transaction", elem_classes="accent-button")
                         
                     with gr.Column(scale=1):
@@ -327,10 +310,8 @@ def build_dashboard():
                         with gr.Row():
                             badge_out = gr.HTML("<div style='color:#94A3B8;'>Submit a transaction for evaluation</div>")
                             prob_out = gr.Markdown("")
-                        
                         explanation_out = gr.Markdown("### Explanation Detail\n*No transaction processed yet.*")
                         source_out = gr.Markdown("")
-                        
                         gr.Markdown("#### explainability analysis")
                         shap_plot = gr.Plot(label="SHAP Analysis")
                         
@@ -340,26 +321,23 @@ def build_dashboard():
                     outputs=[badge_out, prob_out, explanation_out, shap_plot, source_out]
                 )
                 
-            # Tab 2: RegGuard
             with gr.Tab("📋 RegGuard Compliance RAG"):
                 gr.Markdown("### Indian Regulatory Compliance RAG Query Engine")
                 with gr.Row():
                     with gr.Column(scale=1):
                         gr.Markdown("#### Compliance Query")
                         compliance_input = gr.Textbox(
-                            label="Enter Query (e.g. RBI guidelines, UPI limits, FEMA regulations)", 
+                            label="Enter Query (e.g. RBI guidelines, UPI limits, FEMA regulations)",
                             placeholder="e.g. What is the UPI daily transaction limit?",
                             value="What is the UPI daily limit?"
                         )
                         compliance_btn = gr.Button("Search Regulations", elem_classes="accent-button")
-                        
                         gr.Markdown("#### Session Execution Metadata")
                         compliance_metadata = gr.Markdown("*Metrics will appear here after query execution.*")
                         
                     with gr.Column(scale=2):
                         gr.Markdown("#### Compliance Ruling")
                         compliance_output = gr.Markdown("### RAG Ruling Result\n*Waiting for compliance query...*")
-                        
                         citations_output = gr.Markdown("")
                         
                 compliance_btn.click(
@@ -368,7 +346,6 @@ def build_dashboard():
                     outputs=[compliance_output, citations_output, compliance_metadata]
                 )
                 
-            # Tab 3: FinLens
             with gr.Tab("🔍 FinLens Statement Auditing"):
                 gr.Markdown("### Conversational SQL Statement Auditing Engine")
                 with gr.Row():
@@ -376,7 +353,6 @@ def build_dashboard():
                         gr.Markdown("#### Step 1: Upload Bank Statement")
                         file_input = gr.File(label="Upload Bank Statement File (CSV or Pipe-Delimited text)", file_types=[".csv", ".txt"])
                         upload_btn = gr.Button("Parse & Ingest Statement", elem_classes="accent-button")
-                        
                         upload_status = gr.Markdown("")
                         
                     with gr.Column(scale=2):
@@ -386,14 +362,12 @@ def build_dashboard():
                             choices=initial_choices,
                             value=initial_choices[-1] if initial_choices else None
                         )
-                        
                         query_input = gr.Textbox(
                             label="Conversational Numerical Query",
                             placeholder="e.g. How much did I spend on food?",
                             value="How much did I spend on food?"
                         )
                         query_btn = gr.Button("Execute Audit Query", elem_classes="accent-button")
-                        
                         query_output = gr.Markdown("### Audit Output\n*Waiting for query execution...*")
                         sql_box = gr.Code(label="Compiled SQL Executed", language="sql")
                         query_status = gr.Markdown("")
@@ -403,17 +377,14 @@ def build_dashboard():
                     inputs=[file_input],
                     outputs=[upload_status, statement_dropdown]
                 )
-                
                 query_btn.click(
                     fn=run_statement_query,
                     inputs=[statement_dropdown, query_input],
                     outputs=[query_output, sql_box, query_status]
                 )
                 
-            # Tab 4: Monitoring
             with gr.Tab("📈 MLOps & Data Drift"):
                 gr.Markdown("### Statistical Feature Data Drift Monitoring (Evidently AI)")
-                
                 with gr.Row():
                     with gr.Column(scale=1):
                         gr.Markdown("#### Observability Control Center")
