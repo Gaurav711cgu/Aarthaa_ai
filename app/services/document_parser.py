@@ -1,7 +1,7 @@
 import re
 import io
 import logging
-from typing import Dict, Any, 
+from typing import Dict, Any
 import pandas as pd
 from sqlalchemy.orm import Session
 from app.models.statement import BankStatement, StatementTransaction
