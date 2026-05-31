@@ -1,8 +1,4 @@
 # ── Namespace Collision Resolution Shim ────────────────────────────────────────
-# Both litestar (evidently) and gradio/fastapi use the 'multipart' namespace.
-# litestar needs the legacy 'multipart' module (Marcel Hellkamp) for MultipartSegment.
-# gradio needs the modern 'python-multipart' package (Andrew Dunham) for multipart.multipart.
-# We dynamically inject python-multipart's submodule into sys.modules so they both co-exist.
 import sys
 try:
     import python_multipart.multipart as pm_multipart
@@ -13,6 +9,7 @@ except ImportError:
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, status
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -23,8 +20,6 @@ import uuid
 import logging
 from typing import Dict, Any
 import gradio as gr
-
-logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.database import get_db
@@ -38,6 +33,8 @@ from app.api.v1.compliance import router as compliance_router
 from app.api.v1.finlens import router as finlens_router
 from app.ui.dashboard import build_dashboard
 
+logger = logging.getLogger(__name__)
+
 # Initialize API rate limiter per client IP address
 limiter = Limiter(key_func=get_remote_address)
 
@@ -47,29 +44,19 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Attach rate limiting configs
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-# GZip compression for high throughput JSON loads
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
-# ── Correlation ID Middleware ─────────────────────────────────────────────────
-# Injects a unique X-Correlation-ID header on every request+response.
-# All downstream log lines should include this ID for distributed tracing.
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):
     correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
-    # Bind to request state so route handlers can access it
     request.state.correlation_id = correlation_id
-    # Inject into log context
     logger.debug("[%s] %s %s", correlation_id, request.method, request.url.path)
     response = await call_next(request)
-    # Echo the correlation ID back in the response header
     response.headers["X-Correlation-ID"] = correlation_id
     return response
 
-# Register Module API Routers
 app.include_router(auth_router)
 app.include_router(fraud_router, prefix="/api/v1")
 app.include_router(compliance_router, prefix="/api/v1")
@@ -98,7 +85,7 @@ def kafka_status(current_user: Dict[str, Any] = Depends(get_current_user)):
             metadata = producer.list_topics(timeout=3)
             topics = [
                 t for t in metadata.topics.keys()
-                if not t.startswith("__")  # exclude internal Kafka topics
+                if not t.startswith("__")
             ]
         except Exception as e:
             logger.warning(f"Kafka topic listing failed: {e}")
@@ -116,8 +103,7 @@ def kafka_status(current_user: Dict[str, Any] = Depends(get_current_user)):
 @app.get("/health")
 @limiter.limit("30/minute")
 def health_check(request: Request, db: Session = Depends(get_db)):
-    """Deep health check of backend infrastructure to prevent silent connection dropoffs."""
-    # 1. Verify PostgreSQL connection
+    """Deep health check of backend infrastructure."""
     pg_alive = False
     try:
         db.execute(text("SELECT 1"))
@@ -125,17 +111,15 @@ def health_check(request: Request, db: Session = Depends(get_db)):
     except Exception:
         pass
     
-    # 2. Verify Redis cache connection
     redis_alive = test_redis_connection()
     redis_status = "healthy" if redis_alive else ("mock_active" if not is_redis_active else "unreachable")
     
-    # 3. Verify Kafka broker stream connection
     kafka_alive = test_kafka_connection()
     kafka_status = "healthy" if kafka_alive else ("mock_active" if not is_kafka_active else "unreachable")
     
     overall_status = "healthy" if (pg_alive and redis_status == "healthy" and kafka_status == "healthy") else "degraded"
     
-    health_status = {
+    return {
         "status": overall_status,
         "timestamp": time.time(),
         "services": {
@@ -144,12 +128,6 @@ def health_check(request: Request, db: Session = Depends(get_db)):
             "kafka": kafka_status
         }
     }
-    
-    # Returning 200 OK instead of 503 Service Unavailable so that health check liveness probes
-    # (e.g. on Hugging Face Spaces or container environments) do not kill the container when
-    # external services like Postgres/Redis/Kafka are offline on startup. The JSON payload will
-    # still clearly show which sub-services are unreachable for monitoring purposes.
-    return health_status
 
 @app.get("/metrics")
 def metrics():
@@ -157,11 +135,9 @@ def metrics():
     data, content_type = get_metrics_payload()
     return Response(content=data, media_type=content_type)
 
-from fastapi.responses import RedirectResponse
-
 @app.get("/")
 def read_root(request: Request):
-    """Headless API root. Browser agents are seamlessly redirected to the premium Next.js Vercel frontend, while API clients receive professional metadata."""
+    """Headless API root."""
     user_agent = request.headers.get("user-agent", "").lower()
     if "mozilla" in user_agent or "chrome" in user_agent or "safari" in user_agent:
         return RedirectResponse(url=settings.FRONTEND_URL)
@@ -177,5 +153,4 @@ def read_root(request: Request):
         }
     }
 
-# Mount the interactive Gradio dashboard UI on a hidden subpath
 app = gr.mount_gradio_app(app, build_dashboard(), path="/admin-dashboard-hidden")
