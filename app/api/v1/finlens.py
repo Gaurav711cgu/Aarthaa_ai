@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any,
 from app.database import get_db
 from app.models.statement import BankStatement, StatementTransaction
 from app.services.document_parser import statement_parser
