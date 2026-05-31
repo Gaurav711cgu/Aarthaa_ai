@@ -58,7 +58,6 @@ jobs:
       with:
         fetch-depth: 0
     - name: Push to Hugging Face Spaces
-      if: ${{ secrets.HF_TOKEN != '' }}
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
@@ -66,12 +65,18 @@ jobs:
         python -c "
         import os
         from huggingface_hub import HfApi
+
+        token = os.environ.get('HF_TOKEN', '').strip()
+        if not token:
+            print('HF_TOKEN not set, skipping upload.')
+            exit(0)
+
         api = HfApi()
         api.upload_folder(
             folder_path='.',
             repo_id='Gaurav711/Artha_ai',
             repo_type='space',
-            token=os.environ['HF_TOKEN'],
+            token=token,
             ignore_patterns=['.git', '.venv*', '__pycache__', '*.pyc', 'coverage.xml']
         )
         "
