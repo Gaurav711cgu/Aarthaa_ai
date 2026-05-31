@@ -37,7 +37,8 @@ class BankStatementParser:
         # 2. Identify if raw_text contains CSV structure
         lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
         # Filter metadata lines (lines containing BANK:, ACCOUNT:, PERIOD:)
-        csv_lines = [l for l in lines if not re.match(r"^(BANK|ACCOUNT|PERIOD):", l, re.IGNORECASE)]
+        csv_lines = [line for line in lines if not re.match(r"^(BANK|ACCOUNT|PERIOD):", line, re.IGNORECASE)]
+
         csv_text = "\n".join(csv_lines)
 
         # A text is likely CSV if it contains commas and lacks vertical bars
@@ -60,11 +61,16 @@ class BankStatementParser:
                 balance_col = next((c for c in df.columns if any(k in c.lower() for k in ["balance", "bal", "ending_balance"])), None)
 
                 # Fallback to defaults if column mapping fails
-                if not date_col and len(df.columns) > 0: date_col = df.columns[0]
-                if not desc_col and len(df.columns) > 1: desc_col = df.columns[1]
-                if not type_col and len(df.columns) > 2: type_col = df.columns[2]
-                if not amount_col and len(df.columns) > 3: amount_col = df.columns[3]
-                if not balance_col and len(df.columns) > 4: balance_col = df.columns[4]
+               if not date_col and len(df.columns) > 0:
+    date_col = df.columns[0]
+if not desc_col and len(df.columns) > 1:
+    desc_col = df.columns[1]
+if not type_col and len(df.columns) > 2:
+    type_col = df.columns[2]
+if not amount_col and len(df.columns) > 3:
+    amount_col = df.columns[3]
+if not balance_col and len(df.columns) > 4:
+    balance_col = df.columns[4]
 
                 logger.info(f"CSV Columns mapped: Date='{date_col}', Desc='{desc_col}', Type='{type_col}', Amount='{amount_col}', Bal='{balance_col}'")
 
