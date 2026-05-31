@@ -38,7 +38,6 @@ class BankStatementParser:
         lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
         # Filter metadata lines (lines containing BANK:, ACCOUNT:, PERIOD:)
         csv_lines = [line for line in lines if not re.match(r"^(BANK|ACCOUNT|PERIOD):", line, re.IGNORECASE)]
-
         csv_text = "\n".join(csv_lines)
 
         # A text is likely CSV if it contains commas and lacks vertical bars
@@ -61,16 +60,16 @@ class BankStatementParser:
                 balance_col = next((c for c in df.columns if any(k in c.lower() for k in ["balance", "bal", "ending_balance"])), None)
 
                 # Fallback to defaults if column mapping fails
-               if not date_col and len(df.columns) > 0:
-    date_col = df.columns[0]
-if not desc_col and len(df.columns) > 1:
-    desc_col = df.columns[1]
-if not type_col and len(df.columns) > 2:
-    type_col = df.columns[2]
-if not amount_col and len(df.columns) > 3:
-    amount_col = df.columns[3]
-if not balance_col and len(df.columns) > 4:
-    balance_col = df.columns[4]
+                if not date_col and len(df.columns) > 0:
+                    date_col = df.columns[0]
+                if not desc_col and len(df.columns) > 1:
+                    desc_col = df.columns[1]
+                if not type_col and len(df.columns) > 2:
+                    type_col = df.columns[2]
+                if not amount_col and len(df.columns) > 3:
+                    amount_col = df.columns[3]
+                if not balance_col and len(df.columns) > 4:
+                    balance_col = df.columns[4]
 
                 logger.info(f"CSV Columns mapped: Date='{date_col}', Desc='{desc_col}', Type='{type_col}', Amount='{amount_col}', Bal='{balance_col}'")
 
@@ -93,7 +92,7 @@ if not balance_col and len(df.columns) > 4:
 
                     # Normalization rules for credit/debit transaction type
                     raw_type = str(row.get(type_col, "")).upper().strip() if type_col else ""
-                    tx_type = "DEBIT" # default
+                    tx_type = "DEBIT"  # default
                     
                     # If type is indicated by positive/negative amount
                     if float(str(raw_amount).replace(",", "")) > 0.0 and not raw_type:
@@ -127,8 +126,8 @@ if not balance_col and len(df.columns) > 4:
             # Fallback to original vertical-bar regex parser for logs
             logger.info("FinLens executing pipe-delimited parser...")
             tx_lines = re.findall(
-                r"(\d{4}-\d{2}-\d{2})\s*\|\s*([^\|]+)\|\s*(CREDIT|DEBIT|CR|DR|DR\/CR|CR\/DR)\s*\|\s*([\d\.]+)\s*\|\s*([\d\.]+)", 
-                raw_text, 
+                r"(\d{4}-\d{2}-\d{2})\s*\|\s*([^\|]+)\|\s*(CREDIT|DEBIT|CR|DR|DR\/CR|CR\/DR)\s*\|\s*([\d\.]+)\s*\|\s*([\d\.]+)",
+                raw_text,
                 re.IGNORECASE
             )
             
@@ -146,7 +145,7 @@ if not balance_col and len(df.columns) > 4:
                     tx_type_norm = "DEBIT"
                     total_withdrawals += amount
                     
-                ending_balance = balance # Last transaction sets ending balance
+                ending_balance = balance  # Last transaction sets ending balance
                 
                 parsed_transactions.append({
                     "date": tx_date.strip(),
@@ -170,7 +169,7 @@ if not balance_col and len(df.columns) > 4:
         )
         
         db.add(statement_record)
-        db.flush() # Fetch statement ID
+        db.flush()  # Fetch statement ID
         
         for tx in parsed_transactions:
             tx_record = StatementTransaction(
