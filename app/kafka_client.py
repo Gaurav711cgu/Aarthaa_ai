@@ -1,4 +1,5 @@
 from confluent_kafka import Producer
+from typing import Optional
 from app.config import settings
 import logging
 
@@ -10,14 +11,13 @@ class MockKafkaProducer:
         logger.info("MockKafkaProducer local instance initialized.")
         self._backlog = []
 
-    def produce(self, topic: str, value: str, key: str = None, callback=None, **kwargs):
+    def produce(self, topic: str, value: str, key: Optional[str] = None, callback=None, **kwargs):
         """Simulates message production to a topic with callback handler support."""
         event = {"topic": topic, "key": key, "value": value}
         self._backlog.append(event)
         logger.info(f"[Mock Kafka] Enqueued event to '{topic}' | Key: {key} | Payload: {value}")
         
         if callback:
-            # Trigger successful delivery callback asynchronously
             class MockMessage:
                 def topic(self): return topic
                 def key(self): return key
@@ -40,9 +40,8 @@ try:
     conf = {
         'bootstrap.servers': settings.KAFKA_BOOTSTRAP_SERVERS,
         'client.id': 'artha-gateway-producer',
-        'socket.timeout.ms': 1000  # 1s socket timeout
+        'socket.timeout.ms': 1000
     }
-    # Direct reachability validation
     temp_prod = Producer(conf)
     temp_prod.list_topics(timeout=1.0)
     is_kafka_active = True
@@ -66,7 +65,7 @@ def get_kafka_producer():
 def test_kafka_connection() -> bool:
     """Returns True ONLY when a real Kafka broker is reachable. MockKafka is explicitly False."""
     if not is_kafka_active:
-        return False  # MockKafka is not a real connection
+        return False
     try:
         producer = get_kafka_producer()
         metadata = producer.list_topics(timeout=1.0)
