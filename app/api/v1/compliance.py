@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from app.services.compliance_agent import compliance_agent
 from app.api.v1.auth import RoleEnforcer
 import uuid
