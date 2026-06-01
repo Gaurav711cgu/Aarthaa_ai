@@ -7,23 +7,21 @@ except ImportError:
     pass
 # ──────────────────────────────────────────────────────────────────────────────
 
-from fastapi import FastAPI, Depends, HTTPException, Request, Response, status
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from sqlalchemy.orm import Session
-from sqlalchemy import text
 import time
 import uuid
 import logging
 from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
+from fastapi import FastAPI, Depends, HTTPException, Request, Response, status
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy.orm import Session
+from sqlalchemy import text
 
-from app.config import settings
+from app.config import settings  # noqa: E402
 from app.database import get_db
 from app.redis_client import test_redis_connection, is_redis_active
 from app.kafka_client import test_kafka_connection, is_kafka_active
@@ -33,6 +31,8 @@ from app.api.v1.auth import router as auth_router, get_current_user
 from app.api.v1.fraud import router as fraud_router
 from app.api.v1.compliance import router as compliance_router
 from app.api.v1.finlens import router as finlens_router
+
+logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -45,7 +45,6 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(GZipMiddleware, minimum_size=500)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -121,9 +120,9 @@ def health_check(request: Request, db: Session = Depends(get_db)):
     redis_status = "healthy" if redis_alive else ("mock_active" if not is_redis_active else "unreachable")
 
     kafka_alive = test_kafka_connection()
-    kafka_status = "healthy" if kafka_alive else ("mock_active" if not is_kafka_active else "unreachable")
+    kafka_status_str = "healthy" if kafka_alive else ("mock_active" if not is_kafka_active else "unreachable")
 
-    overall_status = "healthy" if (pg_alive and redis_status == "healthy" and kafka_status == "healthy") else "degraded"
+    overall_status = "healthy" if (pg_alive and redis_status == "healthy" and kafka_status_str == "healthy") else "degraded"
 
     return {
         "status": overall_status,
@@ -131,7 +130,7 @@ def health_check(request: Request, db: Session = Depends(get_db)):
         "services": {
             "postgres": "healthy" if pg_alive else "unreachable",
             "redis": redis_status,
-            "kafka": kafka_status
+            "kafka": kafka_status_str
         }
     }
 
