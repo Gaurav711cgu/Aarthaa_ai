@@ -21,7 +21,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from app.config import settings  # noqa: E402
+
 from app.database import get_db
 from app.redis_client import test_redis_connection, is_redis_active
 from app.kafka_client import test_kafka_connection, is_kafka_active
