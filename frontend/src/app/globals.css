@@ -218,6 +218,118 @@ code, pre, kbd, .font-mono {
   transition: width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* ── MODULE DETAIL PAGES ───────────────────────────────────────────────── */
+.module-grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 40px;
+}
+
+.module-grid-aside {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.2fr) minmax(0, 1.8fr);
+  gap: 40px;
+}
+
+.elite-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.module-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.module-kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.module-kpi strong {
+  display: block;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 26px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.module-kpi span {
+  display: block;
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.module-feature {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.module-feature-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+
+.process-lane {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.process-step {
+  background: #040709;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  min-height: 122px;
+}
+
+.signal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.signal-table th,
+.signal-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.signal-table th {
+  color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .module-grid-2,
+  .module-grid-aside,
+  .elite-grid-3,
+  .module-kpi-strip,
+  .process-lane {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── ANIMATIONS ────────────────────────────────────────────────────────── */
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(20px); }

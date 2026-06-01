@@ -27,6 +27,41 @@ const FEED = [
   { tier: "CRITICAL", prob: "91.4%", ch: "RTGS", amt: "18,00,000", lat: "49ms" },
 ];
 
+const MODEL_KPIS = [
+  { value: "42ms", label: "P99 scoring latency with synchronous explainability", color: "#F59E0B" },
+  { value: "97.8%", label: "Validation accuracy on the current fraud signature suite", color: "#10B981" },
+  { value: "0.04", label: "Latest population stability drift score after retraining", color: "#3B82F6" },
+  { value: "2.1M", label: "Transactions evaluated in the rolling monitoring window", color: "#8B5CF6" },
+];
+
+const MODEL_LAYERS = [
+  {
+    icon: <Shield size={15} />,
+    title: "Supervised Signature Matching",
+    text: "RandomForestClassifier catches known card, UPI, NEFT, and RTGS fraud patterns using amount, velocity, channel, and merchant-risk features.",
+    color: "#F59E0B",
+  },
+  {
+    icon: <Activity size={15} />,
+    title: "Unsupervised Anomaly Sweep",
+    text: "IsolationForest scores unusual behavior that has not yet appeared in labelled fraud data, protecting the model from stale attack signatures.",
+    color: "#8B5CF6",
+  },
+  {
+    icon: <Lock size={15} />,
+    title: "Explainable Risk Contract",
+    text: "Every decision returns SHAP-style feature contribution data, a signed model hash, a tier boundary, and a correlation ID for audit traceability.",
+    color: "#10B981",
+  },
+];
+
+const DECISION_STEPS = [
+  { title: "Normalize", text: "Canonicalize amount, channel, device, merchant, and hour-of-day signals before inference." },
+  { title: "Score", text: "Blend forest probability with anomaly magnitude and calibrated threshold boundaries." },
+  { title: "Explain", text: "Attach feature attribution so analysts see why the transaction moved tiers." },
+  { title: "Route", text: "Pass, monitor, review, or block through Kafka topics without slowing the API." },
+];
+
 export default function FraudPage() {
   const [simState, setSimState] = useState<"idle" | "running" | "done">("idle");
   const [simScore, setSimScore] = useState({ prob: 0, anomaly: 0, latency: 0, tier: "—" });
@@ -70,9 +105,46 @@ export default function FraudPage() {
           </div>
         </section>
 
+        <section style={{ padding: "0 0 44px" }}>
+          <div className="section-container">
+            <div className="module-kpi-strip">
+              {MODEL_KPIS.map(kpi => (
+                <div key={kpi.label} className="module-kpi">
+                  <strong style={{ color: kpi.color }}>{kpi.value}</strong>
+                  <span>{kpi.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: "0 0 70px" }}>
+          <div className="section-container">
+            <div style={{ marginBottom: 22 }}>
+              <span className="section-label">Model operating model</span>
+              <h2 style={{ fontWeight: 600, fontSize: 24, color: "#E8F0F8", margin: "8px 0 8px" }}>
+                Built like a fraud desk, not a demo classifier
+              </h2>
+              <p style={{ color: "#7A94AE", fontSize: 14, maxWidth: 680, margin: 0 }}>
+                FraudSense separates known-pattern detection, unknown-anomaly discovery, and
+                analyst-grade explanations so each decision can be defended in a review queue.
+              </p>
+            </div>
+            <div className="elite-grid-3">
+              {MODEL_LAYERS.map(layer => (
+                <div key={layer.title} className="module-feature">
+                  <div className="module-feature-icon" style={{ color: layer.color }}>{layer.icon}</div>
+                  <h3 style={{ fontWeight: 600, fontSize: 16, color: "#E8F0F8", marginBottom: 8 }}>{layer.title}</h3>
+                  <p style={{ color: "#7A94AE", fontSize: 13, lineHeight: 1.7, margin: 0 }}>{layer.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Main content */}
         <section style={{ padding: "0 0 80px" }}>
-          <div className="section-container" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
+          <div className="section-container module-grid-2">
 
             {/* Left — SHAP + features */}
             <div>
@@ -162,6 +234,29 @@ export default function FraudPage() {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: "0 0 80px" }}>
+          <div className="section-container">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 24, alignItems: "flex-end", marginBottom: 18, flexWrap: "wrap" }}>
+              <div>
+                <span className="section-label">Decision pipeline</span>
+                <h2 style={{ fontWeight: 600, fontSize: 22, color: "#E8F0F8", margin: "8px 0 0" }}>
+                  From raw transaction to accountable action
+                </h2>
+              </div>
+              <span className="badge-green">Correlation ID on every hop</span>
+            </div>
+            <div className="process-lane">
+              {DECISION_STEPS.map((step, index) => (
+                <div key={step.title} className="process-step">
+                  <span className="font-mono" style={{ color: "#3D5468", fontSize: 11 }}>0{index + 1}</span>
+                  <h3 style={{ color: "#E8F0F8", fontSize: 15, margin: "10px 0 8px", fontWeight: 600 }}>{step.title}</h3>
+                  <p style={{ color: "#7A94AE", fontSize: 12.5, lineHeight: 1.65, margin: 0 }}>{step.text}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>

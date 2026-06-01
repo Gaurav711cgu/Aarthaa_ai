@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Search, Shield, BookOpen, Layers, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
@@ -42,6 +42,41 @@ const PRESETS = [
     ],
     reason: "Transaction size indicates full KYC required. Since user profile only lists minimal-KYC verification, a secondary identity matching routine is triggered asynchronously."
   }
+];
+
+const GOVERNANCE_METRICS = [
+  { value: "273", label: "Regulatory chunks indexed across RBI, FEMA, PMLA, and wallet policy documents", color: "#8B5CF6" },
+  { value: "0.89", label: "Reference confidence threshold before a verdict can auto-route downstream", color: "#10B981" },
+  { value: "7d", label: "PMLA suspicious transaction reporting window encoded into audit guidance", color: "#F59E0B" },
+  { value: "1h", label: "Redis response cache TTL for repeat policy questions and audit narratives", color: "#3B82F6" },
+];
+
+const CONTROL_LAYERS = [
+  {
+    icon: <BookOpen size={15} />,
+    title: "Curated Policy Corpus",
+    text: "Source text is split into traceable chunks with circular IDs, dates, and jurisdiction tags so answers cite the policy surface that produced them.",
+    color: "#8B5CF6",
+  },
+  {
+    icon: <Shield size={15} />,
+    title: "Verdict Guardrails",
+    text: "The model is constrained to COMPLIANT, NON-COMPLIANT, or NEEDS AUDIT, reducing vague language and making queue routing deterministic.",
+    color: "#F59E0B",
+  },
+  {
+    icon: <CheckCircle size={15} />,
+    title: "Citation Reranking",
+    text: "Generated responses are checked against retrieved source chunks so unsupported claims lose confidence before the result reaches an analyst.",
+    color: "#10B981",
+  },
+];
+
+const AUDIT_FLOW = [
+  { title: "Intake", text: "Transaction narrative, user segment, geography, amount, and channel metadata enter the compliance request." },
+  { title: "Retrieve", text: "pgvector similarity selects the highest-confidence policy passages for the exact regulatory context." },
+  { title: "Synthesize", text: "Groq-backed generation drafts a concise verdict bound to those passages and the selected threshold." },
+  { title: "Escalate", text: "Kafka topics route rejected or uncertain cases into manual compliance review with correlation metadata." },
 ];
 
 export default function CompliancePage() {
@@ -109,9 +144,46 @@ export default function CompliancePage() {
           </div>
         </section>
 
+        <section style={{ padding: "0 0 44px" }}>
+          <div className="section-container">
+            <div className="module-kpi-strip">
+              {GOVERNANCE_METRICS.map(metric => (
+                <div key={metric.label} className="module-kpi">
+                  <strong style={{ color: metric.color }}>{metric.value}</strong>
+                  <span>{metric.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: "0 0 70px" }}>
+          <div className="section-container">
+            <div style={{ marginBottom: 22 }}>
+              <span className="section-label">Regulatory intelligence model</span>
+              <h2 style={{ fontWeight: 600, fontSize: 24, color: "#E8F0F8", margin: "8px 0 8px" }}>
+                A policy engine with receipts
+              </h2>
+              <p style={{ color: "#7A94AE", fontSize: 14, maxWidth: 720, margin: 0 }}>
+                RegGuard is designed to keep compliance decisions inspectable: every verdict
+                carries source chunks, confidence, and a clean escalation path for uncertain cases.
+              </p>
+            </div>
+            <div className="elite-grid-3">
+              {CONTROL_LAYERS.map(layer => (
+                <div key={layer.title} className="module-feature">
+                  <div className="module-feature-icon" style={{ color: layer.color }}>{layer.icon}</div>
+                  <h3 style={{ fontWeight: 600, fontSize: 16, color: "#E8F0F8", marginBottom: 8 }}>{layer.title}</h3>
+                  <p style={{ color: "#7A94AE", fontSize: 13, lineHeight: 1.7, margin: 0 }}>{layer.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Content grid */}
         <section style={{ padding: "0 0 80px" }}>
-          <div className="section-container" style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 40 }}>
+          <div className="section-container module-grid-aside">
             {/* Left Panel: Settings & Presets */}
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {/* Document Registry */}
@@ -315,6 +387,29 @@ export default function CompliancePage() {
                   <strong>Manual Override Warning:</strong> Compliance verdicts generated by RegGuard RAG are advisory. Large transactions flagged as Non-Compliant are piped into the Kafka <code>artha.compliance.reject</code> topic to be processed by a compliance specialist within the JPMC GCC routing queue.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: "0 0 80px" }}>
+          <div className="section-container">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 24, alignItems: "flex-end", marginBottom: 18, flexWrap: "wrap" }}>
+              <div>
+                <span className="section-label">Audit routing lifecycle</span>
+                <h2 style={{ fontWeight: 600, fontSize: 22, color: "#E8F0F8", margin: "8px 0 0" }}>
+                  How a compliance question becomes an auditable verdict
+                </h2>
+              </div>
+              <span className="badge-violet">Source-bound answers</span>
+            </div>
+            <div className="process-lane">
+              {AUDIT_FLOW.map((step, index) => (
+                <div key={step.title} className="process-step">
+                  <span className="font-mono" style={{ color: "#3D5468", fontSize: 11 }}>0{index + 1}</span>
+                  <h3 style={{ color: "#E8F0F8", fontSize: 15, margin: "10px 0 8px", fontWeight: 600 }}>{step.title}</h3>
+                  <p style={{ color: "#7A94AE", fontSize: 12.5, lineHeight: 1.65, margin: 0 }}>{step.text}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>

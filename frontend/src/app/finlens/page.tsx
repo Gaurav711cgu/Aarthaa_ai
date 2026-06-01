@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Database, Search, Upload, Play, CheckCircle, BarChart3, AlertTriangle } from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
@@ -58,6 +58,41 @@ const PRESET_QUERIES: SqlQuery[] = [
   }
 ];
 
+const ANALYTICS_METRICS = [
+  { value: "3", label: "Statement formats normalized into one transaction schema", color: "#F59E0B" },
+  { value: "0", label: "Write operations allowed from generated SQL execution paths", color: "#10B981" },
+  { value: "15+", label: "Offline keyword routes for air-gapped financial analysis", color: "#3B82F6" },
+  { value: "100%", label: "Displayed queries use visible parameter bindings before execution", color: "#8B5CF6" },
+];
+
+const INTELLIGENCE_LAYERS = [
+  {
+    icon: <Upload size={15} />,
+    title: "Statement Normalization",
+    text: "PDF and CSV inputs are mapped into canonical debit, credit, balance, channel, and timestamp fields before any question is answered.",
+    color: "#F59E0B",
+  },
+  {
+    icon: <Database size={15} />,
+    title: "Schema-Aware SQL Planning",
+    text: "The natural language layer works against visible table metadata, then generates parameterized SELECT-only queries for deterministic math.",
+    color: "#3B82F6",
+  },
+  {
+    icon: <BarChart3 size={15} />,
+    title: "Analyst-Ready Outputs",
+    text: "Answers include SQL, bound variables, tabular results, and chart-ready aggregates so reviewers can inspect both logic and result.",
+    color: "#10B981",
+  },
+];
+
+const QUERY_FLOW = [
+  { title: "Parse", text: "Convert natural language into intent, filter clauses, grouping requirements, and requested metric type." },
+  { title: "Plan", text: "Match the request to known schema fields and block unsafe verbs before SQL creation." },
+  { title: "Execute", text: "Run a parameterized SELECT statement against PostgreSQL or SQLite fallback storage." },
+  { title: "Explain", text: "Return SQL, bindings, rows, and chart-friendly aggregates for reviewer confidence." },
+];
+
 export default function FinLensPage() {
   const [dbType, setDbType] = useState<"postgres" | "sqlite">("postgres");
   const [nlQuery, setNlQuery] = useState("");
@@ -112,9 +147,46 @@ export default function FinLensPage() {
           </div>
         </section>
 
+        <section style={{ padding: "0 0 44px" }}>
+          <div className="section-container">
+            <div className="module-kpi-strip">
+              {ANALYTICS_METRICS.map(metric => (
+                <div key={metric.label} className="module-kpi">
+                  <strong style={{ color: metric.color }}>{metric.value}</strong>
+                  <span>{metric.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: "0 0 70px" }}>
+          <div className="section-container">
+            <div style={{ marginBottom: 22 }}>
+              <span className="section-label">Financial intelligence model</span>
+              <h2 style={{ fontWeight: 600, fontSize: 24, color: "#E8F0F8", margin: "8px 0 8px" }}>
+                Natural language analysis with database discipline
+              </h2>
+              <p style={{ color: "#7A94AE", fontSize: 14, maxWidth: 720, margin: 0 }}>
+                FinLens turns messy account statements into auditable SQL workflows, keeping
+                calculations grounded in the database instead of trusting free-form model arithmetic.
+              </p>
+            </div>
+            <div className="elite-grid-3">
+              {INTELLIGENCE_LAYERS.map(layer => (
+                <div key={layer.title} className="module-feature">
+                  <div className="module-feature-icon" style={{ color: layer.color }}>{layer.icon}</div>
+                  <h3 style={{ fontWeight: 600, fontSize: 16, color: "#E8F0F8", marginBottom: 8 }}>{layer.title}</h3>
+                  <p style={{ color: "#7A94AE", fontSize: 13, lineHeight: 1.7, margin: 0 }}>{layer.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Content grid */}
         <section style={{ padding: "0 0 80px" }}>
-          <div className="section-container" style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 40 }}>
+          <div className="section-container module-grid-aside">
             {/* Left Panel: Schema & Statement Upload */}
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {/* Bank Statement Uploader */}
@@ -350,6 +422,29 @@ export default function FinLensPage() {
                   <strong>SQL Injection Protection:</strong> FinLens operates on dynamic tokenized mappings. Queries are structurally validated to prevent arbitrary statement executions. Safe, primary parameterized variables are generated via LLM mappings and strictly bound prior to DBMS execution.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: "0 0 80px" }}>
+          <div className="section-container">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 24, alignItems: "flex-end", marginBottom: 18, flexWrap: "wrap" }}>
+              <div>
+                <span className="section-label">Query execution lifecycle</span>
+                <h2 style={{ fontWeight: 600, fontSize: 22, color: "#E8F0F8", margin: "8px 0 0" }}>
+                  From question to verified ledger answer
+                </h2>
+              </div>
+              <span className="badge-green">SELECT-only execution</span>
+            </div>
+            <div className="process-lane">
+              {QUERY_FLOW.map((step, index) => (
+                <div key={step.title} className="process-step">
+                  <span className="font-mono" style={{ color: "#3D5468", fontSize: 11 }}>0{index + 1}</span>
+                  <h3 style={{ color: "#E8F0F8", fontSize: 15, margin: "10px 0 8px", fontWeight: 600 }}>{step.title}</h3>
+                  <p style={{ color: "#7A94AE", fontSize: 12.5, lineHeight: 1.65, margin: 0 }}>{step.text}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
