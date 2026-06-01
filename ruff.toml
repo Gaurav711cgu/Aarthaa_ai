@@ -1,0 +1,8 @@
+[lint]
+ignore = [
+    "E402",   # module level import not at top of file (needed for sys.modules shim)
+    "E701",   # multiple statements on one line
+    "E741",   # ambiguous variable name
+    "F821",   # undefined name (gradio/evidently dynamic imports)
+    "F841",   # local variable assigned but never used
+]
