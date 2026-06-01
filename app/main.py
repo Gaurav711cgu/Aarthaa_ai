@@ -9,6 +9,7 @@ except ImportError:
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, status
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -19,7 +20,8 @@ import time
 import uuid
 import logging
 from typing import Dict, Any
-import gradio as gr
+
+logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.database import get_db
@@ -31,11 +33,7 @@ from app.api.v1.auth import router as auth_router, get_current_user
 from app.api.v1.fraud import router as fraud_router
 from app.api.v1.compliance import router as compliance_router
 from app.api.v1.finlens import router as finlens_router
-from app.ui.dashboard import build_dashboard
 
-logger = logging.getLogger(__name__)
-
-# Initialize API rate limiter per client IP address
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
@@ -47,6 +45,17 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(GZipMiddleware, minimum_size=500)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://aarthaa-ai.vercel.app",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):
@@ -64,7 +73,6 @@ app.include_router(finlens_router, prefix="/api/v1")
 
 @app.get("/api/v1/monitoring/drift-report")
 def get_drift_report(current_user: Dict[str, Any] = Depends(get_current_user)):
-    """Returns the latest Evidently AI statistical data drift report as base64-encoded HTML."""
     report_base64 = drift_detector.get_drift_report_html_base64()
     if not report_base64:
         raise HTTPException(
@@ -75,7 +83,6 @@ def get_drift_report(current_user: Dict[str, Any] = Depends(get_current_user)):
 
 @app.get("/api/v1/monitoring/kafka-status")
 def kafka_status(current_user: Dict[str, Any] = Depends(get_current_user)):
-    """Returns Kafka broker connectivity status and topic metadata."""
     from app.kafka_client import test_kafka_connection, get_kafka_producer
     is_alive = test_kafka_connection()
     topics = []
@@ -103,22 +110,21 @@ def kafka_status(current_user: Dict[str, Any] = Depends(get_current_user)):
 @app.get("/health")
 @limiter.limit("30/minute")
 def health_check(request: Request, db: Session = Depends(get_db)):
-    """Deep health check of backend infrastructure."""
     pg_alive = False
     try:
         db.execute(text("SELECT 1"))
         pg_alive = True
     except Exception:
         pass
-    
+
     redis_alive = test_redis_connection()
     redis_status = "healthy" if redis_alive else ("mock_active" if not is_redis_active else "unreachable")
-    
+
     kafka_alive = test_kafka_connection()
     kafka_status = "healthy" if kafka_alive else ("mock_active" if not is_kafka_active else "unreachable")
-    
+
     overall_status = "healthy" if (pg_alive and redis_status == "healthy" and kafka_status == "healthy") else "degraded"
-    
+
     return {
         "status": overall_status,
         "timestamp": time.time(),
@@ -131,26 +137,20 @@ def health_check(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/metrics")
 def metrics():
-    """Exposes Prometheus-scrapable latency, scoring, and data drift metrics."""
     data, content_type = get_metrics_payload()
     return Response(content=data, media_type=content_type)
 
 @app.get("/")
-def read_root(request: Request):
-    """Headless API root."""
-    user_agent = request.headers.get("user-agent", "").lower()
-    if "mozilla" in user_agent or "chrome" in user_agent or "safari" in user_agent:
-        return RedirectResponse(url=settings.FRONTEND_URL)
+def read_root():
     return {
         "gateway": "Artha AI Unified API Gateway",
         "status": "online",
         "version": "2.0.0",
         "documentation": "/docs",
+        "frontend": "https://aarthaa-ai.vercel.app",
         "endpoints": {
-            "fraud_scoring": "/api/v1/analyze",
+            "fraud_scoring": "/api/v1/fraud/score",
             "compliance_audit": "/api/v1/compliance/check",
             "statement_parsing": "/api/v1/finlens/upload"
         }
     }
-
-app = gr.mount_gradio_app(app, build_dashboard(), path="/admin-dashboard-hidden")
