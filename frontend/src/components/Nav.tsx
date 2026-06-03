@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/mlops",     label: "MLOps" },
   { href: "/security",  label: "Security" },
   { href: "/infra",     label: "Infrastructure" },
+  { href: "/#blogs",    label: "Research & Blogs" },
 ];
 
 export default function Nav() {
