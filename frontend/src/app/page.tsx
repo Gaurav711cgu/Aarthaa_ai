@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { ChevronRight, FileText, GitBranch } from "lucide-react";
+import { ChevronRight, FileText, GitBranch, ArrowRight, ShieldCheck, ShieldAlert, Activity, Terminal } from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
@@ -276,7 +276,55 @@ function BlogSection({ blog }: { blog: Blog }) {
   );
 }
 
+const pipelineSteps = [
+  {
+    title: "Apache Kafka Ingress Gate",
+    description: "Decouples the transaction ingestion gateway from the scoring and database backends, handling up to 15,000 requests per second at peak load.",
+    input: `{\n  "transaction_id": "tx_891023489",\n  "amount": 250000.00,\n  "currency": "INR",\n  "sender": "cust_823ab",\n  "recipient": "corp_991f",\n  "channel": "NEFT",\n  "timestamp": 1780245000\n}`,
+    output: `{\n  "status": "QUEUED",\n  "partition": 0,\n  "offset": 1908234,\n  "consumer_group": "artha-fraud-scorers"\n}`,
+    vulnerabilityTitle: "System Starvation & Unbuffered Input Spoofing",
+    vulnerabilityDesc: "Direct HTTP endpoint flooding can cause CPU starvation or database connection exhaustion. Ingress spoofing allows fake transaction inputs without tracing.",
+    mitigationTitle: "Partitioned Buffer Decoupling",
+    mitigationDesc: "Kafka partitions input traffic into a strict append-only log. Ingestion occurs in 2.1ms; downstream workers consume at their own pace, shielding databases from sudden spikes. SSL/TLS client-auth guarantees verified origin.",
+    accentColor: "var(--amber)"
+  },
+  {
+    title: "FraudSense Ensemble Scoring",
+    description: "Evaluates transactions concurrently using a supervised Random Forest for signature patterns and an unsupervised Isolation Forest for multi-dimensional anomaly path checking.",
+    input: `{\n  "amount": 250000.00,\n  "velocity_1h": 4,\n  "location_delta_km": 450.2,\n  "device_fingerprint": "dev_89ab3f"\n}`,
+    output: `{\n  "fraud_probability": 0.761,\n  "anomaly_score": -0.682,\n  "shap_attributions": {\n    "velocity_1h": +0.22,\n    "location_delta": +0.18\n  },\n  "verdict": "HIGH_RISK"\n}`,
+    vulnerabilityTitle: "Adversarial Input Evasion & Model Hijacking",
+    vulnerabilityDesc: "Fraudsters adjust amounts/frequencies to slide just beneath scoring thresholds. Attackers with host access could overwrite the model artifact to always approve transactions.",
+    mitigationTitle: "Dual-Path Ensemble & Cryptographic Model Signing",
+    mitigationDesc: "We validate the model using SHA-256 cryptographic signatures prior to runtime instantiation. The unsupervised Isolation Forest path flags novel anomalies that avoid the supervised Random Forest boundaries.",
+    accentColor: "var(--violet-l)"
+  },
+  {
+    title: "RegGuard Compliance Scanner",
+    description: "Performs dense vector retrieval using HyDE (Hypothetical Document Embeddings) inside a pgvector-enabled PostgreSQL database to match legal circulars, and parses with LLaMA-3.1.",
+    input: `{\n  "transaction_id": "tx_891023489",\n  "amount_usd": 3012.04,\n  "purpose_code": "S0305"\n}`,
+    output: `{\n  "verdict": "NON_COMPLIANT",\n  "violation": "FEMA Section 10(4)",\n  "reason": "LRS foreign exchange limit exceeded for selected purpose code without verified secondary PAN."\n}`,
+    vulnerabilityTitle: "Prompt Injection & RAG Semantic Hallucination",
+    vulnerabilityDesc: "Attackers embed malicious payloads in custom transaction fields to force 'COMPLIANT' verdicts. Vector stores may retrieve irrelevant legal clauses, leading to hallucinations.",
+    mitigationTitle: "HyDE Alignment & Strictly Enforced Output Schemas",
+    mitigationDesc: "HyDE reformulates queries to search matching vector patterns precisely, filtering out noisy inputs. The LLM output is piped through a structured JSON parser, stripping prompt hijacking attempts.",
+    accentColor: "var(--blue)"
+  },
+  {
+    title: "FinLens Audit & SQL Ledger",
+    description: "Translates natural language questions into safe, parameterized SQL queries against bank statements, storing the compliance reports to a secure ledger fallback.",
+    input: `{\n  "user_query": "Find high risk FEMA transactions in last 24h"\n}`,
+    output: `{\n  "sql": "SELECT * FROM transactions WHERE verdict = ? AND scope = ? AND created_at >= ?",\n  "params": ["HIGH_RISK", "FEMA", "2026-06-03T00:00:00Z"],\n  "db_status": "COMMITTED_TO_LEDGER"\n}`,
+    vulnerabilityTitle: "SQL Injection via Text-to-SQL Pipelines",
+    vulnerabilityDesc: "An LLM converting natural language to SQL might generate queries that execute DELETE or DROP commands, or access tables holding secret credentials.",
+    mitigationTitle: "AST Query Guardrails & Read-Only Fallbacks",
+    mitigationDesc: "We compile query results using an Abstract Syntax Tree (AST) parser to block non-SELECT statements. The execution runs on a read-only SQLite replica, shielding the primary production database.",
+    accentColor: "var(--green-l)"
+  }
+];
+
 export default function HomePage() {
+  const [activeStep, setActiveStep] = useState(0);
   const [visibleLines, setVisibleLines] = useState<{ text: string; color: string; typing?: boolean }[]>([]);
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
@@ -371,30 +419,30 @@ export default function HomePage() {
     evidently_drift_psi = 0.081 (STABLE)
     prometheus_scraped = true`}</pre>
           </div>
-          <div className="section-container" style={{ position: "relative", zIndex: 5 }}>
+          <div className="section-container" style={{ position: "relative", zIndex: 5, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
 
             {/* Badges */}
-            <div className="anim-fade-up" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 28 }}>
+            <div className="anim-fade-up" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 28, justifyContent: "center" }}>
               <span className="badge-amber">RBI · FEMA · PMLA Compliant</span>
               <span className="badge-violet">JPMC GCC Architecture</span>
               <span className="badge-green">Production ML System</span>
             </div>
 
             {/* Headline */}
-            <h1 className="anim-fade-up-d1" style={{ fontSize: "clamp(34px, 5.5vw, 60px)", fontWeight: 700, color: "#E8F0F8", marginBottom: 20, maxWidth: 740 }}>
+            <h1 className="anim-fade-up-d1" style={{ fontSize: "clamp(34px, 5.5vw, 60px)", fontWeight: 700, color: "#E8F0F8", marginBottom: 20, maxWidth: 740, textAlign: "center" }}>
               Production FinTech AI.<br />
               <span style={{ color: "#F59E0B" }}>Real-Time. Explainable. Compliant.</span>
             </h1>
 
             {/* Subtext */}
-            <p className="anim-fade-up-d2" style={{ fontSize: 16, color: "#7A94AE", maxWidth: 580, lineHeight: 1.75, marginBottom: 40 }}>
+            <p className="anim-fade-up-d2" style={{ fontSize: 16, color: "#7A94AE", maxWidth: 580, lineHeight: 1.75, marginBottom: 40, marginLeft: "auto", marginRight: "auto" }}>
               Artha AI combines a RandomForest + IsolationForest fraud ensemble, a Groq-powered
               regulatory RAG agent, and a Text-to-SQL auditor — decoupled via Apache Kafka,
               monitored with Evidently AI, and deployed on HA Kubernetes.
             </p>
 
             {/* Terminal */}
-            <div className="anim-fade-up-d2 terminal-window" style={{ maxWidth: 660, marginBottom: 36 }}>
+            <div className="anim-fade-up-d2 terminal-window" style={{ maxWidth: 660, width: "100%", marginBottom: 36, marginLeft: "auto", marginRight: "auto" }}>
               <div className="terminal-dots">
                 <div className="terminal-dot" style={{ background: "#FF5063" }} />
                 <div className="terminal-dot" style={{ background: "#F59E0B" }} />
@@ -403,7 +451,7 @@ export default function HomePage() {
                   artha-ai · gaurav711/Artha_ai · HuggingFace Spaces
                 </span>
               </div>
-              <div ref={termRef} style={{ height: 300, overflow: "hidden", padding: "16px 20px", fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, lineHeight: 1.7 }}>
+              <div ref={termRef} style={{ height: 300, overflow: "hidden", padding: "16px 20px", fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, lineHeight: 1.7, textAlign: "left" }}>
                 {visibleLines.map((l, i) => (
                   <div key={i} style={{ color: l.color, minHeight: "1.7em" }}>
                     {l.text}
@@ -419,12 +467,12 @@ export default function HomePage() {
             </div>
 
             {/* Stats */}
-            <div ref={statsRef} className="anim-fade-up-d3" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, maxWidth: 560, marginBottom: 36 }}>
+            <div ref={statsRef} className="anim-fade-up-d3" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, maxWidth: 560, width: "100%", marginBottom: 36, marginLeft: "auto", marginRight: "auto" }}>
               {STATS.map((s, i) => <StatCard key={i} stat={s} inView={statsInView} />)}
             </div>
 
             {/* CTAs */}
-            <div className="anim-fade-up-d3" style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+            <div className="anim-fade-up-d3" style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "center" }}>
               <Link href="/fraud" className="btn-primary">
                 Explore FraudSense <ChevronRight size={15} />
               </Link>
@@ -440,56 +488,134 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── MODULES OVERVIEW ──────────────────────────────────────────── */}
-        <section style={{ padding: "80px 0", background: "#0A1018", borderTop: "1px solid #1C2D3E", borderBottom: "1px solid #1C2D3E" }}>
+        {/* ── INTERACTIVE WORKFLOW PIPELINE ─────────────────────────────── */}
+        <section id="pipeline" style={{ padding: "100px 0", background: "#0A1018", borderTop: "1px solid #1C2D3E", borderBottom: "1px solid #1C2D3E" }}>
           <div className="section-container">
-            <h2 style={{ fontWeight: 600, fontSize: 28, color: "#E8F0F8", marginBottom: 8 }}>Three Core Modules</h2>
-            <p style={{ color: "#7A94AE", fontSize: 15, marginBottom: 36, maxWidth: 560 }}>
-              Each module has a dedicated route, its own FastAPI router, rate limiter, and
-              Prometheus metrics — fully decoupled via Kafka.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+            {/* Pipeline Header */}
+            <div style={{ textAlign: "center", marginBottom: "4rem" }}>
+              <span className="section-label">Real-Time Processing Pipeline</span>
+              <h2 style={{ fontWeight: 700, fontSize: 36, color: "#E8F0F8", marginTop: 8, marginBottom: 12 }}>
+                Interactive Architectural Flow
+              </h2>
+              <p style={{ color: "#7A94AE", fontSize: 16, maxWidth: 600, margin: "0 auto" }}>
+                Click through each pipeline node to observe raw inputs, generated outputs, runtime vulnerability scans, and mathematical safeguards.
+              </p>
+            </div>
+
+            {/* Pipeline Visual Graph */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", maxWidth: "800px", margin: "0 auto 4rem", padding: "0 20px" }}>
+              {/* Connecting Background Line */}
+              <div style={{ position: "absolute", top: "24px", left: "40px", right: "40px", height: "2px", background: "var(--border)", zIndex: 1 }} />
+              
+              {/* Animated Glowing Active Line */}
+              <div style={{
+                position: "absolute", top: "24px", left: "40px",
+                width: `${activeStep * 33.33}%`, height: "2px",
+                background: "linear-gradient(90deg, var(--amber), var(--violet), var(--blue), var(--green))",
+                transition: "width 0.4s ease", zIndex: 2
+              }} />
+
               {[
-                {
-                  href: "/fraud", color: "#F59E0B",
-                  title: "FraudSense", tag: "RF + IsolationForest",
-                  desc: "Scores transactions in under 50ms with SHAP explainability, SHA-256 model signing, and automatic background retraining.",
-                  items: ["RandomForest + IsolationForest ensemble", "SHAP feature attribution per transaction", "Kafka publish — zero blocking on scoring"],
-                },
-                {
-                  href: "/compliance", color: "#8B5CF6",
-                  title: "RegGuard", tag: "Compliance RAG Agent",
-                  desc: "Validates transactions against RBI, FEMA, and PMLA regulations using pgvector similarity search and Groq LLaMA-3.1.",
-                  items: ["pgvector cosine similarity — 768-dim embeddings", "Groq LLaMA-3.1 for compliance verdict", "5 req/min rate limiting per client IP"],
-                },
-                {
-                  href: "/finlens", color: "#10B981",
-                  title: "FinLens", tag: "Text-to-SQL Auditor",
-                  desc: "Converts natural language queries into parameterized SQL against uploaded bank statements. Zero SQL injection surface.",
-                  items: ["Natural language to parameterized SQL", "Multi-format: CSV, pipe-delimited, PDF text", "PostgreSQL primary + SQLite local fallback"],
-                },
-              ].map(m => (
-                <Link key={m.href} href={m.href} style={{ textDecoration: "none" }}>
-                  <div className="research-card" style={{ borderTop: `2px solid ${m.color}`, height: "100%", cursor: "pointer" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 17, color: "#E8F0F8" }}>{m.title}</span>
-                      <span className="font-mono" style={{ fontSize: 10, color: m.color, background: `${m.color}15`, border: `1px solid ${m.color}30`, padding: "2px 8px", borderRadius: 4 }}>{m.tag}</span>
+                { label: "1. Ingress Gate", color: "var(--amber)", desc: "Kafka Consumer" },
+                { label: "2. FraudSense ML", color: "var(--violet-l)", desc: "RF + IsolationForest" },
+                { label: "3. RegGuard RAG", color: "var(--blue)", desc: "pgvector Scan" },
+                { label: "4. FinLens Audits", color: "var(--green-l)", desc: "Secure Ledger" }
+              ].map((step, idx) => {
+                const isActive = activeStep === idx;
+                const isPassed = activeStep > idx;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveStep(idx)}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer",
+                      display: "flex", flexDirection: "column", alignItems: "center",
+                      zIndex: 3, position: "relative", width: "80px", outline: "none"
+                    }}
+                  >
+                    <div style={{
+                      width: "48px", height: "48px", borderRadius: "50%",
+                      background: isActive ? "var(--surface2)" : "var(--surface)",
+                      border: `2px solid ${isActive ? step.color : isPassed ? step.color : "var(--border)"}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: isActive || isPassed ? step.color : "var(--text3)",
+                      fontWeight: 700, fontSize: "14px",
+                      transition: "all 0.3s ease",
+                      boxShadow: isActive ? `0 0 16px ${step.color}40` : "none"
+                    }}>
+                      {idx + 1}
                     </div>
-                    <p style={{ fontSize: 13, color: "#7A94AE", lineHeight: 1.7, marginBottom: 16 }}>{m.desc}</p>
-                    <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 7 }}>
-                      {m.items.map((it, i) => (
-                        <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, color: "#7A94AE" }}>
-                          <span style={{ color: m.color, marginTop: 2, flexShrink: 0, fontSize: 16, lineHeight: 1 }}>&#x2192;</span>
-                          {it}
-                        </li>
-                      ))}
-                    </ul>
-                    <div style={{ marginTop: 20, fontSize: 12, color: m.color, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
-                      View module <span style={{ fontSize: 16 }}>&#x2192;</span>
-                    </div>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: isActive ? "#E8F0F8" : "var(--text2)", marginTop: "12px", whiteSpace: "nowrap" }}>
+                      {step.label.split(" ").slice(1).join(" ")}
+                    </span>
+                    <span style={{ fontSize: "10px", color: "var(--text3)", marginTop: "2px", whiteSpace: "nowrap" }}>
+                      {step.desc}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Step Content */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", maxWidth: "950px", margin: "0 auto" }} className="pipeline-details">
+              {/* Left Column: Data Stream Sandbox */}
+              <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "24px", display: "flex", flexDirection: "column", height: "100%" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: pipelineSteps[activeStep].accentColor }} />
+                  <span className="font-mono" style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)" }}>
+                    Runtime Data Stream
+                  </span>
+                </div>
+                <h3 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "12px", color: "var(--text)" }}>
+                  {pipelineSteps[activeStep].title}
+                </h3>
+                <p style={{ fontSize: "13.5px", color: "var(--text2)", lineHeight: "1.6", marginBottom: "20px" }}>
+                  {pipelineSteps[activeStep].description}
+                </p>
+
+                {/* Input-Output Terminal */}
+                <div style={{ marginTop: "auto" }}>
+                  <div style={{ background: "#040709", border: "1px solid var(--border)", borderRadius: "8px", padding: "16px", fontFamily: "'JetBrains Mono', monospace", fontSize: "11.5px", lineHeight: "1.6" }}>
+                    <div style={{ color: "var(--text3)", marginBottom: "4px" }}>// INPUT PAYLOAD</div>
+                    <pre style={{ color: "#E8F0F8", whiteSpace: "pre-wrap", marginBottom: "16px" }}>{pipelineSteps[activeStep].input}</pre>
+                    <div style={{ color: "var(--text3)", marginBottom: "4px" }}>// MODULE OUTPUT</div>
+                    <pre style={{ color: pipelineSteps[activeStep].accentColor, whiteSpace: "pre-wrap" }}>{pipelineSteps[activeStep].output}</pre>
                   </div>
-                </Link>
-              ))}
+                </div>
+              </div>
+
+              {/* Right Column: Security Analysis & Vulnerabilities */}
+              <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "24px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                    <ShieldAlert size={15} style={{ color: "var(--rose)" }} />
+                    <span className="font-mono" style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--rose)" }}>
+                      Risk Vector (Vulnerability Scan)
+                    </span>
+                  </div>
+                  <h4 style={{ fontSize: "16px", fontWeight: 700, color: "#E8F0F8", marginBottom: "8px" }}>
+                    {pipelineSteps[activeStep].vulnerabilityTitle}
+                  </h4>
+                  <p style={{ fontSize: "13.5px", color: "var(--text2)", lineHeight: "1.6" }}>
+                    {pipelineSteps[activeStep].vulnerabilityDesc}
+                  </p>
+                </div>
+
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: "20px", marginTop: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                    <ShieldCheck size={15} style={{ color: "var(--green)" }} />
+                    <span className="font-mono" style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--green)" }}>
+                      Artha Loss Prevention Safeguard
+                    </span>
+                  </div>
+                  <h4 style={{ fontSize: "16px", fontWeight: 700, color: "#E8F0F8", marginBottom: "8px" }}>
+                    {pipelineSteps[activeStep].mitigationTitle}
+                  </h4>
+                  <p style={{ fontSize: "13.5px", color: "var(--text2)", lineHeight: "1.6" }}>
+                    {pipelineSteps[activeStep].mitigationDesc}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
