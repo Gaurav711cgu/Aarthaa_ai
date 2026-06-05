@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import OperationalError
+from typing import Any
 from app.config import settings
 import logging
 
@@ -17,7 +18,7 @@ else:
 # Fallback SQLite URL
 SQLITE_URL = "sqlite:///artha_local.db"
 
-engine = None
+engine: Any = None
 is_postgres_active = False
 
 try:
