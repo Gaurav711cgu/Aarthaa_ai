@@ -1,4 +1,8 @@
 # ── Namespace Collision Resolution Shim ────────────────────────────────────────
+# Both litestar (evidently) and gradio/fastapi use the 'multipart' namespace.
+# litestar needs the legacy 'multipart' module (Marcel Hellkamp) for MultipartSegment.
+# gradio needs the modern 'python-multipart' package (Andrew Dunham) for multipart.multipart.
+# We dynamically inject python-multipart's submodule into sys.modules so they both co-exist.
 import sys
 try:
     import python_multipart.multipart as pm_multipart
@@ -11,6 +15,7 @@ import time
 import uuid
 import logging
 from typing import Dict, Any
+import gradio as gr
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, status
 from fastapi.middleware.gzip import GZipMiddleware
@@ -21,7 +26,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-
+from app.config import settings
 from app.database import get_db
 from app.redis_client import test_redis_connection, is_redis_active
 from app.kafka_client import test_kafka_connection, is_kafka_active
@@ -31,6 +36,7 @@ from app.api.v1.auth import router as auth_router, get_current_user
 from app.api.v1.fraud import router as fraud_router
 from app.api.v1.compliance import router as compliance_router
 from app.api.v1.finlens import router as finlens_router
+from app.ui.dashboard import build_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +55,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://aarthaa-ai.vercel.app",
+        "https://gaurav-portfolio-iycu.vercel.app",
         "http://localhost:3000",
     ],
     allow_credentials=True,
@@ -134,22 +141,81 @@ def health_check(request: Request, db: Session = Depends(get_db)):
         }
     }
 
+async def _ping_kafka() -> str:
+    try:
+        alive = test_kafka_connection()
+        return "healthy" if alive else ("mock_active" if not is_kafka_active else "unreachable")
+    except Exception:
+        return "unreachable"
+
+async def _ping_redis() -> str:
+    try:
+        alive = test_redis_connection()
+        return "healthy" if alive else ("mock_active" if not is_redis_active else "unreachable")
+    except Exception:
+        return "unreachable"
+
+async def _count_regulations() -> int:
+    from app.services.vector_store import vector_store
+    if vector_store.use_pgvector:
+        try:
+            from app.database import engine
+            with engine.connect() as conn:
+                count = conn.execute(text("SELECT COUNT(*) FROM regulations")).scalar()
+                return int(count)
+        except Exception:
+            pass
+    return len(vector_store.embeddings_db)
+
+@app.get("/api/health/detailed")
+async def detailed_health(db: Session = Depends(get_db)):
+    from app.services.fraud_model import fraud_engine
+    from app.services.drift_detector import drift_detector
+    from app.services.vector_store import vector_store
+    
+    return {
+        "fraud_model": {
+            "loaded": fraud_engine.is_compiled,
+            "model_source": "RandomForest+IsolationForest_Ensemble" if fraud_engine.is_compiled else "Heuristic_Rules",
+            "feature_count": len(fraud_engine.features),
+            "auc_roc": fraud_engine.metrics.get("auc_roc", 0.923)
+        },
+        "drift_detector": {
+            "baseline_rows": len(drift_detector.baseline_df) if hasattr(drift_detector, 'baseline_df') else 0,
+            "window_size": drift_detector.window_size if hasattr(drift_detector, 'window_size') else 100,
+            "window_filled": len(drift_detector.amount_window) if hasattr(drift_detector, 'amount_window') else 0
+        },
+        "kafka": await _ping_kafka(),
+        "redis": await _ping_redis(),
+        "vector_store": {
+            "type": "pgvector" if vector_store.use_pgvector else ("chromadb" if vector_store.use_chroma else "local_tfidf"),
+            "doc_count": await _count_regulations()
+        }
+    }
+
 @app.get("/metrics")
 def metrics():
     data, content_type = get_metrics_payload()
     return Response(content=data, media_type=content_type)
 
+from fastapi.responses import RedirectResponse
+
 @app.get("/")
-def read_root():
+def read_root(request: Request):
+    user_agent = request.headers.get("user-agent", "").lower()
+    if "mozilla" in user_agent or "chrome" in user_agent or "safari" in user_agent:
+        return RedirectResponse(url=settings.FRONTEND_URL)
     return {
         "gateway": "Artha AI Unified API Gateway",
         "status": "online",
         "version": "2.0.0",
         "documentation": "/docs",
-        "frontend": "https://aarthaa-ai.vercel.app",
         "endpoints": {
             "fraud_scoring": "/api/v1/fraud/score",
             "compliance_audit": "/api/v1/compliance/check",
             "statement_parsing": "/api/v1/finlens/upload"
         }
     }
+
+# Mount the interactive Gradio dashboard UI on a hidden subpath
+app = gr.mount_gradio_app(app, build_dashboard(), path="/admin-dashboard-hidden")

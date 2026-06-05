@@ -303,9 +303,15 @@ SAMPLE_CHUNKS = [
 class TestLocalVectorStore:
     def setup_method(self):
         from app.services.vector_store import LocalVectorStore
+        self.open_patcher = patch("app.services.vector_store.open", create=True)
+        self.mock_open = self.open_patcher.start()
         with patch("app.services.vector_store.is_postgres_active", False), \
              patch("app.services.vector_store.os.path.exists", return_value=False):
             self.vs = LocalVectorStore()
+
+    def teardown_method(self):
+        self.open_patcher.stop()
+
 
     def test_search_on_empty_store_returns_empty(self):
         results = self.vs.search("UPI limit")
