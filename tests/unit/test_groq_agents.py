@@ -90,7 +90,7 @@ def test_finlens_sql_agent_execution(mock_create_agent, mock_toolkit, mock_chat_
         # Mock database session
         mock_db = MagicMock()
         
-        result = engine.answer_numerical_query(mock_db, "Show me my closing balance", statement_id=1)
+        result = engine.answer_numerical_query(mock_db, "Show me my closing balance", statement_id=1, username="test_sql_agent_user")
         
         # Verify agent was invoked
         mock_agent.invoke.assert_called_once()

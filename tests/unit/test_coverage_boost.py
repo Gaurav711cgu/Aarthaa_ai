@@ -551,3 +551,331 @@ class TestComplianceAPIAuth:
         headers = get_readonly_headers()
         r = client.post("/api/v1/compliance/query", json={"query": "UPI daily limit rules"}, headers=headers)
         assert r.status_code == 200
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Extra Coverage Boosting for Vector Store, Fraud Model and FinLens Engine
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestVectorStoreMockedChroma:
+    @patch("app.services.vector_store.HAS_CHROMA", True)
+    @patch("app.services.vector_store.chromadb")
+    @patch("app.services.vector_store.is_postgres_active", False)
+    @patch("app.services.vector_store.os.path.exists", return_value=False)
+    def test_chroma_path_init_and_search(self, mock_exists, mock_chroma):
+        mock_client = MagicMock()
+        mock_collection = MagicMock()
+        mock_chroma.PersistentClient.return_value = mock_client
+        mock_client.get_or_create_collection.return_value = mock_collection
+        
+        # mock query response
+        mock_collection.query.return_value = {
+            "documents": [["Doc 1"]],
+            "metadatas": [[{"source": "src", "section": "sec"}]],
+            "distances": [[0.1]]
+        }
+        
+        from app.services.vector_store import LocalVectorStore
+        vs = LocalVectorStore()
+        assert vs.use_chroma is True
+        
+        # Test search with chroma
+        vs.embeddings_db = [{"text": "Doc 1", "source": "src", "section": "sec"}]
+        vs._is_fitted = True
+        vs.vectorizer = MagicMock()
+        results = vs.search("test query")
+        assert len(results) == 1
+        assert results[0]["text"] == "Doc 1"
+
+    @patch("app.services.vector_store.HAS_CHROMA", True)
+    @patch("app.services.vector_store.chromadb")
+    @patch("app.services.vector_store.is_postgres_active", False)
+    @patch("app.services.vector_store.os.path.exists", return_value=False)
+    @patch("app.services.vector_store.LocalVectorStore._persist")
+    def test_chroma_add_chunks(self, mock_persist, mock_exists, mock_chroma):
+        mock_client = MagicMock()
+        mock_collection = MagicMock()
+        mock_chroma.PersistentClient.return_value = mock_client
+        mock_client.get_or_create_collection.return_value = mock_collection
+        
+        from app.services.vector_store import LocalVectorStore
+        vs = LocalVectorStore()
+        vs.add_chunks([{"text": "chunk text", "source": "src", "section": "sec"}])
+        mock_collection.upsert.assert_called_once()
+
+
+class TestVectorStoreMockedPostgres:
+    @patch("app.services.vector_store.is_postgres_active", True)
+    @patch("app.services.vector_store.os.path.exists", return_value=False)
+    @patch("app.database.engine")
+    def test_pgvector_path_init_and_search(self, mock_engine, mock_exists):
+        mock_conn = MagicMock()
+        mock_engine.begin.return_value.__enter__.return_value = mock_conn
+        mock_engine.connect.return_value.__enter__.return_value = mock_conn
+        
+        mock_conn.execute.return_value.fetchall.return_value = [
+            ("chunk text", "src", "sec", 0.9)
+        ]
+        
+        from app.services.vector_store import LocalVectorStore
+        vs = LocalVectorStore()
+        assert vs.use_pgvector is True
+        
+        vs.embeddings_db = [{"text": "chunk text", "source": "src", "section": "sec"}]
+        vs._is_fitted = True
+        vs.vectorizer = MagicMock()
+        vs.vectorizer.vocabulary_ = {"hello": 0}
+        
+        results = vs.search("test query")
+        assert len(results) == 1
+        assert results[0]["text"] == "chunk text"
+
+    @patch("app.services.vector_store.is_postgres_active", True)
+    @patch("app.services.vector_store.os.path.exists", return_value=False)
+    @patch("app.database.engine")
+    @patch("app.services.vector_store.LocalVectorStore._persist")
+    def test_pgvector_add_chunks(self, mock_persist, mock_engine, mock_exists):
+        mock_conn = MagicMock()
+        mock_engine.begin.return_value.__enter__.return_value = mock_conn
+        mock_engine.connect.return_value.__enter__.return_value = mock_conn
+        
+        from app.services.vector_store import LocalVectorStore
+        vs = LocalVectorStore()
+        vs.vectorizer = MagicMock()
+        vs.vectorizer.vocabulary_ = {"hello": 0}
+        
+        vs.add_chunks([{"text": "chunk text", "source": "src", "section": "sec"}])
+        assert mock_conn.execute.called
+
+
+class TestVectorStoreErrorPaths:
+    @patch("app.services.vector_store.is_postgres_active", False)
+    def test_crc_mismatch(self):
+        from app.services.vector_store import LocalVectorStore
+        
+        def side_effect_exists(path):
+            if "reg_embeddings.json" in path:
+                return True
+            return False
+            
+        mock_files = {
+            "reg_embeddings.json": '[{"text": "t", "source": "s", "section": "sec"}]',
+            "reg_embeddings.json.crc": "99999"
+        }
+        
+        class MockOpen:
+            def __init__(self, filename, *args, **kwargs):
+                self.filename = filename
+            def __enter__(self):
+                content = ""
+                for k, v in mock_files.items():
+                    if k in self.filename:
+                        content = v
+                import io
+                return io.StringIO(content)
+            def __exit__(self, *args):
+                pass
+                
+        with patch("app.services.vector_store.os.path.exists", side_effect=side_effect_exists), \
+             patch("builtins.open", MockOpen):
+            vs = LocalVectorStore()
+            assert len(vs.embeddings_db) == 0
+
+    @patch("app.services.vector_store.is_postgres_active", False)
+    @patch("app.services.vector_store.os.path.exists", return_value=False)
+    def test_persist_exception_handled(self, mock_exists):
+        from app.services.vector_store import LocalVectorStore
+        vs = LocalVectorStore()
+        vs.embeddings_db = [{"text": "t", "source": "s", "section": "sec"}]
+        with patch("builtins.open", side_effect=IOError("write error")):
+            vs._persist()
+
+
+class TestFraudModelExtPaths:
+    def test_missing_checksum_file(self):
+        from app.services.fraud_model import FraudScoringEngine
+        with patch("app.services.fraud_model.os.path.exists") as mock_exists:
+            def exists_side_effect(path):
+                if "fraud_model.joblib.sha256" in path:
+                    return False
+                return True
+            mock_exists.side_effect = exists_side_effect
+            engine = FraudScoringEngine()
+            assert engine.is_compiled is False
+    
+    def test_checksum_mismatch(self):
+        from app.services.fraud_model import FraudScoringEngine
+        mock_files = {
+            "fraud_model.joblib": b"some bytes",
+            "fraud_model.joblib.sha256": "wronghash"
+        }
+        class MockOpenBytes:
+            def __init__(self, filename, mode="r", *args, **kwargs):
+                self.filename = filename
+                self.mode = mode
+            def __enter__(self):
+                content = b""
+                for k, v in mock_files.items():
+                    if k in self.filename:
+                        content = v
+                import io
+                if "b" in self.mode:
+                    return io.BytesIO(content)
+                else:
+                    return io.StringIO(content.decode("utf-8"))
+            def __exit__(self, *args):
+                pass
+        
+        with patch("app.services.fraud_model.os.path.exists", return_value=True), \
+             patch("builtins.open", MockOpenBytes):
+            engine = FraudScoringEngine()
+            assert engine.is_compiled is False
+
+    def test_label_encoder_fallback(self):
+        from app.services.fraud_model import fraud_engine
+        payload = {
+            "amount": 250.0,
+            "hour": 14,
+            "velocity_1h": 1,
+            "distance_from_home": 2.5,
+            "merchant_risk": 0.02,
+            "P_emaildomain": "unseen-domain.com",
+            "R_emaildomain": "another-unseen.com",
+            "DeviceType": "nintendo-ds"
+        }
+        res = fraud_engine.score_transaction(payload)
+        assert "risk_tier" in res
+
+    def test_compile_explanation_and_tier_variations(self):
+        from app.services.fraud_model import fraud_engine
+        # Test Critical Tier
+        explanation, tier = fraud_engine._compile_explanation_and_tier(
+            prob=0.9, anomaly_score=-0.2, shap_vals={"TransactionAmt": 0.5}, tx={"amount": 600000.0, "TransactionAmt": 600000.0}
+        )
+        assert tier == "CRITICAL"
+        assert "high transaction value" in explanation
+        
+        # Test High Tier
+        explanation, tier = fraud_engine._compile_explanation_and_tier(
+            prob=0.7, anomaly_score=-0.1, shap_vals={"card1": 0.5}, tx={"card1": 1004}
+        )
+        assert tier == "HIGH"
+        
+        # Test empty top features narrative fallback
+        explanation, tier = fraud_engine._compile_explanation_and_tier(
+            prob=0.1, anomaly_score=0.1, shap_vals={}, tx={}
+        )
+        assert tier == "LOW"
+        assert "standard operational parameters" in explanation
+        
+        # Test other narratives in separate batches to avoid top-3 truncation
+        explanation, tier = fraud_engine._compile_explanation_and_tier(
+            prob=0.3, anomaly_score=0.01,
+            shap_vals={
+                "velocity_6h": 0.5,
+                "velocity_24h": 0.4
+            },
+            tx={
+                "velocity_6h": 2,
+                "velocity_24h": 3
+            }
+        )
+        assert tier == "MEDIUM"
+        assert "last 6h" in explanation
+        assert "last 24h" in explanation
+
+        explanation2, tier2 = fraud_engine._compile_explanation_and_tier(
+            prob=0.3, anomaly_score=0.01,
+            shap_vals={
+                "addr1": 0.5,
+                "P_emaildomain": 0.4,
+                "DeviceType": 0.3
+            },
+            tx={
+                "addr1": 150.0,
+                "P_emaildomain": "gmail.com",
+                "DeviceType": "desktop"
+            }
+        )
+        assert tier2 == "MEDIUM"
+        assert "billing/shipping region" in explanation2
+        assert "purchaser email domain" in explanation2
+        assert "device transaction" in explanation2
+
+    def test_heuristic_fallback_scenarios(self):
+        from app.services.fraud_model import fraud_engine
+        # Test low risk
+        res = fraud_engine._heuristic_fallback({
+            "amount": 100, "velocity_1h": 1, "distance_from_home": 10, "hour": 12, "merchant_risk": 0.05
+        })
+        assert res["risk_tier"] == "LOW"
+        
+        # Test medium/high/critical via various fields
+        res = fraud_engine._heuristic_fallback({
+            "amount": 200000, "velocity_1h": 10, "distance_from_home": 300, "hour": 2, "merchant_risk": 0.8
+        })
+        assert res["risk_tier"] == "CRITICAL"
+
+
+class TestFinLensEngineExtPaths:
+    def test_sql_query_tracker_json(self):
+        from app.services.finlens_engine import SQLQueryTracker
+        tracker = SQLQueryTracker()
+        serialized = {"name": "sql_db_query"}
+        tracker.on_tool_start(serialized, '{"query": "SELECT 1"}')
+        assert tracker.queries[0] == "SELECT 1"
+        
+        tracker.on_tool_start(serialized, 'invalid json')
+        assert tracker.queries[1] == "invalid json"
+    
+    def test_invalid_statement_id_raises_value_error(self):
+        from app.services.finlens_engine import finlens_engine
+        with pytest.raises(ValueError):
+            finlens_engine.answer_numerical_query(None, "query", -1)
+            
+    def test_agent_executor_error_fallback(self):
+        from app.services.finlens_engine import finlens_engine
+        original_executor = finlens_engine.agent_executor
+        try:
+            finlens_engine.agent_executor = MagicMock()
+            finlens_engine.agent_executor.invoke.side_effect = Exception("Agent error")
+            
+            res = finlens_engine.answer_numerical_query(MagicMock(), "What is my closing balance?", 1)
+            assert res["audit_status"] == "VERIFIED_VIA_SQL_DATABASE"
+        finally:
+            finlens_engine.agent_executor = original_executor
+            
+    def test_offline_sql_execution_error(self):
+        from app.services.finlens_engine import finlens_engine
+        mock_db = MagicMock()
+        mock_db.execute.side_effect = Exception("DB execution error")
+        res = finlens_engine.answer_numerical_query(mock_db, "What is my closing balance?", 1)
+        assert res["audit_status"] == "EXECUTION_ERROR"
+        assert "Failed to compile SQL" in res["answer"]
+        
+    @patch("app.services.finlens_engine._llm_limiter.is_allowed", return_value=True)
+    def test_offline_router_keywords(self, mock_is_allowed):
+        from app.services.finlens_engine import finlens_engine
+        mock_db = MagicMock()
+        mock_db.execute.return_value.scalar.return_value = 100.0
+        
+        queries = [
+            ("opening balance", "Opening Balance"),
+            ("salary paycheck", "Salary Earnings"),
+            ("total deposits credits", "Total Deposits"),
+            ("swiggy food zomato", "Total Food Spend"),
+            ("rent payment", "Rent Expenditure"),
+            ("uber cab travel", "Total Travel Spend"),
+            ("shopping amazon flipkart", "Total Shopping Spend"),
+            ("bill utility phone", "Total Utility Spends"),
+            ("max largest transaction", "Maximum Transaction Value"),
+            ("min smallest transaction", "Minimum Transaction Value"),
+            ("average mean transaction", "Average Transaction Value"),
+            ("withdrawals total debits spent", "Total Withdrawals"),
+            ("cash transaction", "Total Cash Flows"),
+            ("how many transaction", "Transaction Count")
+        ]
+        
+        for q, expected_label in queries:
+            res = finlens_engine.answer_numerical_query(mock_db, q, 1)
+            assert expected_label in res["answer"] or (q == "how many transaction" and "transactions recorded" in res["answer"])

@@ -18,6 +18,49 @@ DATASET_URL = "https://huggingface.co/datasets/TabArena/BeyondArena/resolve/main
 
 def download_and_preprocess_ieee_data() -> pd.DataFrame:
     """Downloads the real IEEE-CIS Fraud Detection dataset and computes MLOps velocity features."""
+    if os.environ.get("ARTHA_TESTING") == "true":
+        logger.info("ARTHA_TESTING is enabled. Generating correlated tiny synthetic dataset for fast test training...")
+        np.random.seed(2026)
+        n_rows = 200
+        
+        # Concentrate categories and numerical fields around common values to form a strong normal cluster
+        card1 = np.random.choice([1004, 2000, 3000, 4000, 5000], size=n_rows, p=[0.4, 0.15, 0.15, 0.15, 0.15])
+        addr1 = np.random.choice([150.0, 200.0, 300.0, 400.0], size=n_rows, p=[0.4, 0.2, 0.2, 0.2])
+        p_email = np.random.choice(['gmail.com', 'yahoo.com', 'unknown'], size=n_rows, p=[0.6, 0.2, 0.2])
+        r_email = np.random.choice(['gmail.com', 'yahoo.com', 'unknown'], size=n_rows, p=[0.6, 0.2, 0.2])
+        device = np.random.choice(['desktop', 'mobile', 'unknown'], size=n_rows, p=[0.6, 0.2, 0.2])
+        
+        amount = np.random.uniform(5.0, 1000.0, size=n_rows)
+        # Ensure we have some high amounts/frauds for Random Forest to learn from
+        fraud_indices = np.random.choice(n_rows, size=int(n_rows * 0.15), replace=False)
+        amount[fraud_indices] = np.random.uniform(4500.0, 8000.0, size=len(fraud_indices))
+        
+        # Partition day so train has 150 rows and val has 50 rows
+        day = np.zeros(n_rows, dtype=int)
+        day[:150] = np.random.randint(1, 140, size=150)
+        day[150:] = np.random.randint(141, 150, size=50)
+        
+        df = pd.DataFrame({
+            'TransactionAmt': amount,
+            'card1': card1,
+            'addr1': addr1,
+            'P_emaildomain': p_email,
+            'R_emaildomain': r_email,
+            'DeviceType': device,
+            'Transaction_date': pd.date_range(start='2026-06-01', periods=n_rows, freq='s'),
+            'day': day
+        })
+        df = df.sort_values(['card1', 'Transaction_date'])
+        df_indexed = df.set_index('Transaction_date')
+        df['velocity_1h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('1h').count().values
+        df['velocity_6h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('6h').count().values
+        df['velocity_24h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('24h').count().values
+        
+        # Deterministic relation to avoid overfitting to noise and guarantee zero probability for low amounts
+        df['isFraud'] = (df['TransactionAmt'] > 4000.0).astype(int)
+        return df
+
+
     logger.info("Downloading real IEEE-CIS Fraud Detection dataset from Hugging Face...")
     try:
         # Load necessary columns for memory efficiency
