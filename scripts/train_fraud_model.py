@@ -56,6 +56,10 @@ def download_and_preprocess_ieee_data() -> pd.DataFrame:
         df['velocity_6h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('6h').count().values
         df['velocity_24h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('24h').count().values
         
+        # Calculate historical mean per card1 and the ratio
+        card_means = df.groupby('card1')['TransactionAmt'].transform('mean')
+        df['amount_to_mean_ratio'] = df['TransactionAmt'] / card_means.replace(0, 1.0)
+        
         # Deterministic relation to avoid overfitting to noise and guarantee zero probability for low amounts
         df['isFraud'] = (df['TransactionAmt'] > 4000.0).astype(int)
         return df
@@ -81,6 +85,11 @@ def download_and_preprocess_ieee_data() -> pd.DataFrame:
     df['velocity_6h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('6h').count().values
     df['velocity_24h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('24h').count().values
 
+    # Calculate historical mean per card1 and the ratio
+    logger.info("Computing amount to historical mean ratio feature...")
+    card_means = df.groupby('card1')['TransactionAmt'].transform('mean')
+    df['amount_to_mean_ratio'] = df['TransactionAmt'] / card_means.replace(0, 1.0)
+
     # Handle missing categories and encode
     logger.info("Encoding categorical features...")
     for col in ['P_emaildomain', 'R_emaildomain', 'DeviceType']:
@@ -100,7 +109,8 @@ def train_and_save_ensemble():
     features = [
         'TransactionAmt', 'card1', 'addr1',
         'P_emaildomain', 'R_emaildomain', 'DeviceType',
-        'velocity_1h', 'velocity_6h', 'velocity_24h'
+        'velocity_1h', 'velocity_6h', 'velocity_24h',
+        'amount_to_mean_ratio'
     ]
     
     encoders = {}
@@ -129,6 +139,7 @@ def train_and_save_ensemble():
     rf_model = RandomForestClassifier(
         n_estimators=80,
         max_depth=15,
+        class_weight="balanced_subsample",
         random_state=2026,
         n_jobs=-1
     )

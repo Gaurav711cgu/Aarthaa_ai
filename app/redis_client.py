@@ -17,7 +17,11 @@ class MockRedis:
     def get(self, key: str) -> str:
         return self._store.get(key)
 
-    def set(self, key: str, value: str, ex=None, px=None, nx=False, xx=False) -> bool:
+    def set(self, key: str, value: str, ex=None, px=None, nx=False, xx=False):
+        if nx and key in self._store:
+            return None
+        if xx and key not in self._store:
+            return None
         self._store[key] = str(value)
         return True
 

@@ -27,6 +27,10 @@ app/models/*.onnx
 app/models/*.joblib
 app/models/*.sha256
 data/chroma_db/
+data/*.csv
+data/*.zip
+.coverage*
+Aartha_ai/
 
 # System files
 .DS_Store

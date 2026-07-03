@@ -130,15 +130,22 @@ class FraudScoringEngine:
     def score_transaction(self, tx_data: Dict[str, Any]) -> Dict[str, Any]:
         """Calculates fraud probabilities, anomaly thresholds, and natural language explanations."""
         # Standardize features dictionary
-        amount = float(tx_data.get("amount", tx_data.get("TransactionAmt", 0.0)))
-        card1 = int(tx_data.get("card1", 1004))
-        addr1 = float(tx_data.get("addr1", 150.0))
+        amount_val = tx_data.get("amount")
+        amount = float(amount_val if amount_val is not None else tx_data.get("TransactionAmt", 0.0))
+        card1_val = tx_data.get("card1")
+        card1 = int(card1_val if card1_val is not None else 1004)
+        addr1_val = tx_data.get("addr1")
+        addr1 = float(addr1_val if addr1_val is not None else 150.0)
         
-        p_email = str(tx_data.get("P_emaildomain", "gmail.com"))
-        r_email = str(tx_data.get("R_emaildomain", "gmail.com"))
-        device = str(tx_data.get("DeviceType", "desktop"))
+        p_email_val = tx_data.get("P_emaildomain")
+        p_email = str(p_email_val if p_email_val is not None else "gmail.com")
+        r_email_val = tx_data.get("R_emaildomain")
+        r_email = str(r_email_val if r_email_val is not None else "gmail.com")
+        device_val = tx_data.get("DeviceType")
+        device = str(device_val if device_val is not None else "desktop")
         
-        timestamp = int(tx_data.get("timestamp", int(time.time())))
+        timestamp_val = tx_data.get("timestamp")
+        timestamp = int(timestamp_val if timestamp_val is not None else int(time.time()))
         
         # Calculate real-time velocity features using Redis sorted sets
         velocity_feats = self.get_velocity_features(str(card1), timestamp)
@@ -157,6 +164,9 @@ class FraudScoringEngine:
         r_email_enc = encode_category("R_emaildomain", r_email)
         device_enc = encode_category("DeviceType", device)
         
+        ratio_val = tx_data.get("amount_to_mean_ratio")
+        amount_to_mean_ratio = float(ratio_val if ratio_val is not None else 1.0)
+
         # Compile standardized feature row for scikit-learn models
         features_dict = {
             "TransactionAmt": amount,
@@ -167,7 +177,8 @@ class FraudScoringEngine:
             "DeviceType": device_enc,
             "velocity_1h": velocity_feats["velocity_1h"],
             "velocity_6h": velocity_feats["velocity_6h"],
-            "velocity_24h": velocity_feats["velocity_24h"]
+            "velocity_24h": velocity_feats["velocity_24h"],
+            "amount_to_mean_ratio": amount_to_mean_ratio
         }
         
         df_row = pd.DataFrame([features_dict], columns=self.features)
@@ -176,6 +187,9 @@ class FraudScoringEngine:
             try:
                 # Class probabilities
                 prob = float(self.rf_model.predict_proba(df_row)[0][1])
+                # Business override for extreme transaction amount values
+                if amount > 50000.0:
+                    prob = max(prob, 0.90)
                 
                 # Anomaly score from Isolation Forest
                 anomaly_score = float(self.iforest.decision_function(df_row)[0])
@@ -228,7 +242,8 @@ class FraudScoringEngine:
                         "features": list(shap_contributions.keys()),
                         "values": list(shap_contributions.values())
                     },
-                    "model_source": "RandomForest+IsolationForest_Ensemble"
+                    "model_source": "RandomForest+IsolationForest_Ensemble",
+                    "meta_dict": meta_dict
                 }
             except Exception as e:
                 logger.error(f"Inference execution error: {e}. Defaulting to heuristic fallback.")
@@ -241,7 +256,21 @@ class FraudScoringEngine:
             "hour": int(tx_data.get("hour", 12)),
             "merchant_risk": float(tx_data.get("merchant_risk", 0.05))
         }
-        return self._heuristic_fallback(fallback_tx)
+        fallback_meta = {
+            "amount": amount,
+            "card1": card1,
+            "addr1": addr1,
+            "P_emaildomain": p_email,
+            "R_emaildomain": r_email,
+            "DeviceType": device,
+            "velocity_1h": velocity_feats["velocity_1h"],
+            "velocity_6h": velocity_feats["velocity_6h"],
+            "velocity_24h": velocity_feats["velocity_24h"],
+            "amount_to_mean_ratio": amount_to_mean_ratio
+        }
+        fallback_res = self._heuristic_fallback(fallback_tx)
+        fallback_res["meta_dict"] = fallback_meta
+        return fallback_res
 
     def _compile_explanation_and_tier(
         self, prob: float, anomaly_score: float, shap_vals: Dict[str, float], tx: Dict[str, Any]

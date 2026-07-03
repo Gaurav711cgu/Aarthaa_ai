@@ -31,5 +31,20 @@ class StatementTransaction(Base):
     
     statement = relationship("BankStatement", back_populates="transactions")
 
+class ScoredTransaction(Base):
+    __tablename__ = "transactions"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    card1 = Column(Integer, index=True, nullable=False)
+    amount = Column(Float, nullable=False)
+    timestamp = Column(Integer, nullable=False, index=True)
+    addr1 = Column(Float, nullable=True)
+    P_emaildomain = Column(String(50), nullable=True)
+    R_emaildomain = Column(String(50), nullable=True)
+    DeviceType = Column(String(50), nullable=True)
+    velocity_1h = Column(Integer, nullable=True)
+    velocity_6h = Column(Integer, nullable=True)
+    velocity_24h = Column(Integer, nullable=True)
+
 # Create tables in database engine
 Base.metadata.create_all(bind=engine)

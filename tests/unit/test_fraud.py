@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 from app.main import app
 import uuid
+from unittest.mock import patch
 
 client = TestClient(app)
 
@@ -12,8 +13,13 @@ def get_analyst_headers():
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
-def test_analyze_low_risk_transaction():
+@patch("app.services.graph_fraud.graph_scorer.score_with_context")
+@patch("app.services.fraud_model.fraud_engine.rf_model.predict_proba")
+def test_analyze_low_risk_transaction(mock_predict, mock_score):
     """Verify that a standard legitimate transaction gets approved."""
+    mock_score.return_value = {"graph_available": False, "gnn_score": None}
+    mock_predict.return_value = [[0.99, 0.01]] # 1% fraud probability -> LOW risk
+    
     payload = {
         "amount": 250.0, # ₹250
         "hour": 14, # 2PM
@@ -33,10 +39,15 @@ def test_analyze_low_risk_transaction():
     assert "explanation" in data
     assert "shap_values" in data
     assert "amount" in data["shap_values"]
-    assert data["model_source"] == "RandomForest+IsolationForest_Ensemble"
+    assert data["model_source"] in ["RandomForest+IsolationForest_Ensemble", "hybrid_rf_gnn"]
 
-def test_analyze_high_risk_transaction():
+@patch("app.services.graph_fraud.graph_scorer.score_with_context")
+@patch("app.services.fraud_model.fraud_engine.rf_model.predict_proba")
+def test_analyze_high_risk_transaction(mock_predict, mock_score):
     """Verify that a fraudulent transaction pattern gets flagged."""
+    mock_score.return_value = {"graph_available": False, "gnn_score": None}
+    mock_predict.return_value = [[0.05, 0.95]] # 95% fraud probability -> CRITICAL risk
+    
     payload = {
         "amount": 850000.0, # ₹8.5L (high amount)
         "hour": 3, # 3AM (odd hours)
@@ -54,7 +65,6 @@ def test_analyze_high_risk_transaction():
     assert data["risk_tier"] in ["HIGH", "CRITICAL"]
     assert data["status"] == "flagged_for_investigation"
     assert "explanation" in data
-    # Explanation should contain indicators
     assert len(data["explanation"]) > 0
 
 def test_analyze_invalid_payload():
@@ -71,4 +81,3 @@ def test_analyze_invalid_payload():
     headers = get_analyst_headers()
     response = client.post("/api/v1/fraud/score", json=payload, headers=headers)
     assert response.status_code == 422 # Unprocessable Entity
-

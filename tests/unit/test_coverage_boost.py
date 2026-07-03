@@ -149,18 +149,18 @@ class TestDataDriftDetector:
         self.detector = DataDriftDetector(window_size=100)
 
     def test_check_drift_below_window_returns_zeros(self):
-        result = self.detector.check_drift(500.0, 2)
-        assert result["amount_drift"] == 0.0
-        assert result["velocity_drift"] == 0.0
+        result = self.detector.check_drift({"amount": 500.0, "velocity_1h": 2})
+        assert result["TransactionAmt_drift"] == 0.0
+        assert result["velocity_1h_drift"] == 0.0
         assert result["dataset_drift"] is False
 
     def test_check_drift_accumulates_window(self):
         # Push enough data to trigger the evidently computation path
         for i in range(12):
-            result = self.detector.check_drift(float(100 + i * 50), i % 4 + 1)
+            result = self.detector.check_drift({"amount": float(100 + i * 50), "velocity_1h": i % 4 + 1})
         # After 12 entries, drift computation runs — result must have the keys
-        assert "amount_drift" in result
-        assert "velocity_drift" in result
+        assert "TransactionAmt_drift" in result
+        assert "velocity_1h_drift" in result
         assert "dataset_drift" in result
 
     def test_fallback_baseline_generated(self):
@@ -168,14 +168,14 @@ class TestDataDriftDetector:
         from app.services.drift_detector import DataDriftDetector
         with patch("app.services.drift_detector.os.path.exists", return_value=False):
             d = DataDriftDetector(window_size=50)
-        assert len(d.baseline_df) == 100
-        assert "amount" in d.baseline_df.columns
+        assert len(d.baseline_df) == 5000
+        assert "TransactionAmt" in d.baseline_df.columns
         assert "velocity_1h" in d.baseline_df.columns
 
     def test_get_drift_report_html_base64_returns_string(self):
         # Need >= 10 observations first for last_report to be set
         for i in range(12):
-            self.detector.check_drift(float(200 + i * 100), i % 3 + 1)
+            self.detector.check_drift({"amount": float(200 + i * 100), "velocity_1h": i % 3 + 1})
         html = self.detector.get_drift_report_html_base64()
         assert isinstance(html, str)
 
