@@ -95,7 +95,7 @@ def run_fraud_scoring(amount: float, hour: int, velocity: int, distance: float, 
         "user_id": str(uuid.uuid4())
     }
     
-    drift_detector.check_drift(amount, velocity)
+    drift_detector.check_drift(tx_dict)
     
     res = fraud_engine.score_transaction(tx_dict)
     

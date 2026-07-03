@@ -2,6 +2,7 @@ from collections import deque
 import os
 import json
 import time
+from typing import Dict, Any
 import numpy as np
 import pandas as pd
 import logging
@@ -29,7 +30,7 @@ class DataDriftDetector:
     def __init__(self, window_size: int = 500):
         self.window_size = window_size
         self.features = DRIFT_FEATURES
-        self.feature_windows = {feat: deque(maxlen=window_size) for feat in self.features}
+        self.feature_windows: Dict[str, deque[Any]] = {feat: deque(maxlen=window_size) for feat in self.features}
         self.last_report = None
         
         if os.path.exists(BASELINE_PATH):
@@ -80,7 +81,7 @@ class DataDriftDetector:
                 mapped_tx[k] = v
 
         for feat in self.features:
-            val = mapped_tx.get(feat)
+            val: Any = mapped_tx.get(feat)
             if val is None:
                 if feat in ["TransactionAmt", "addr1"]:
                     val = 0.0
@@ -90,7 +91,7 @@ class DataDriftDetector:
                     val = "unknown"
             self.feature_windows[feat].append(val)
         
-        drift_results = {"dataset_drift": False}
+        drift_results: Dict[str, Any] = {"dataset_drift": False}
         for feat in self.features:
             drift_results[f"{feat}_drift"] = 0.0
             
