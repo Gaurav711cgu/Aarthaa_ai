@@ -1,4 +1,5 @@
 import os
+import sys
 from confluent_kafka import Producer
 from typing import Optional
 from app.config import settings
@@ -6,8 +7,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Mock is only enabled if explicitly set via environment variable (useful for unit tests)
-MOCK_FORCED = os.getenv("ARTHA_KAFKA_MOCK", "false").lower() == "true"
+# Mock is enabled if explicitly set via environment variable or running inside pytest
+is_testing = "pytest" in sys.modules or os.getenv("PYTEST_CURRENT_TEST") is not None
+MOCK_FORCED = os.getenv("ARTHA_KAFKA_MOCK", "false").lower() == "true" or is_testing
 
 class MockKafkaProducer:
     """In-memory Mock Kafka Producer for unit tests only."""

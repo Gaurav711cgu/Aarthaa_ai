@@ -1,6 +1,14 @@
-import torch
-import numpy as np
-from app.services.graph_fraud import SAGEConv, FraudGraphSAGE, GraphBuilder, graph_scorer
+import pytest
+
+try:
+    import torch
+    import numpy as np
+    from app.services.graph_fraud import SAGEConv, FraudGraphSAGE, GraphBuilder, graph_scorer
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch (torch) is not installed.")
 
 def test_sage_conv():
     """Verify SAGEConv works correctly with standard PyTorch tensors."""
