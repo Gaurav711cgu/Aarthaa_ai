@@ -98,11 +98,16 @@ except Exception as e:
     logger.warning(f"Redis connection failed: {e}. Activating transparent MockRedis fallback.")
     is_redis_active = False
 
+_mock_redis_client = None
+
 def get_redis_client():
     """Factory function returning active Redis client or in-memory MockRedis wrapper."""
+    global _mock_redis_client
     if is_redis_active and redis_pool:
         return redis.Redis(connection_pool=redis_pool)
-    return MockRedis()
+    if _mock_redis_client is None:
+        _mock_redis_client = MockRedis()
+    return _mock_redis_client
 
 def test_redis_connection() -> bool:
     """Verifies Redis container health status (always True for active MockRedis)."""
