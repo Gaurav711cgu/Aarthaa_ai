@@ -1,0 +1,11 @@
+{
+  "auc_roc": 0.9138,
+  "precision": 0.3466,
+  "recall": 0.617,
+  "f1": 0.4439,
+  "val_rows": 118534,
+  "num_features": 71,
+  "model": "LightGBM",
+  "split": "temporal (day > 140, ~118k val rows)",
+  "dataset": "IEEE-CIS Fraud Detection (590k transactions)"
+}

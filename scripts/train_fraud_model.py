@@ -1,211 +1,190 @@
+"""
+IEEE-CIS Fraud Detection: LightGBM ensemble with temporal train/val split.
+Reads directly from data/raw/train_transaction.csv + data/raw/train_identity.csv.
+Produces real AUC-ROC, precision, recall on a held-out temporal validation set.
+
+Usage:
+    kaggle competitions download -c ieee-fraud-detection -p data/raw/
+    cd data/raw && unzip ieee-fraud-detection.zip && cd ../..
+    python3 scripts/train_fraud_model.py
+"""
 import os
-import joblib
+import json
 import hashlib
+import logging
+import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier, IsolationForest
-from sklearn.metrics import classification_report, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score
 from sklearn.preprocessing import LabelEncoder
-import logging
-import ssl
-
-ssl._create_default_https_context = ssl._create_unverified_context  # type: ignore[assignment]
+import lightgbm as lgb
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-DATASET_URL = "https://huggingface.co/datasets/TabArena/BeyondArena/resolve/main/ieee_fraud_detection/019db516-2f8e-7e50-a8c4-f1c57754f52c/dataset.parquet"
-
-def download_and_preprocess_ieee_data() -> pd.DataFrame:
-    """Downloads the real IEEE-CIS Fraud Detection dataset and computes MLOps velocity features."""
-    if os.environ.get("ARTHA_TESTING") == "true":
-        logger.info("ARTHA_TESTING is enabled. Generating correlated tiny synthetic dataset for fast test training...")
-        np.random.seed(2026)
-        n_rows = 200
-        
-        # Concentrate categories and numerical fields around common values to form a strong normal cluster
-        card1 = np.random.choice([1004, 2000, 3000, 4000, 5000], size=n_rows, p=[0.4, 0.15, 0.15, 0.15, 0.15])
-        addr1 = np.random.choice([150.0, 200.0, 300.0, 400.0], size=n_rows, p=[0.4, 0.2, 0.2, 0.2])
-        p_email = np.random.choice(['gmail.com', 'yahoo.com', 'unknown'], size=n_rows, p=[0.6, 0.2, 0.2])
-        r_email = np.random.choice(['gmail.com', 'yahoo.com', 'unknown'], size=n_rows, p=[0.6, 0.2, 0.2])
-        device = np.random.choice(['desktop', 'mobile', 'unknown'], size=n_rows, p=[0.6, 0.2, 0.2])
-        
-        amount = np.random.uniform(5.0, 1000.0, size=n_rows)
-        # Ensure we have some high amounts/frauds for Random Forest to learn from
-        fraud_indices = np.random.choice(n_rows, size=int(n_rows * 0.15), replace=False)
-        amount[fraud_indices] = np.random.uniform(4500.0, 8000.0, size=len(fraud_indices))
-        
-        # Partition day so train has 150 rows and val has 50 rows
-        day = np.zeros(n_rows, dtype=int)
-        day[:150] = np.random.randint(1, 140, size=150)
-        day[150:] = np.random.randint(141, 150, size=50)
-        
-        df = pd.DataFrame({
-            'TransactionAmt': amount,
-            'card1': card1,
-            'addr1': addr1,
-            'P_emaildomain': p_email,
-            'R_emaildomain': r_email,
-            'DeviceType': device,
-            'Transaction_date': pd.date_range(start='2026-06-01', periods=n_rows, freq='s'),
-            'day': day
-        })
-        df = df.sort_values(['card1', 'Transaction_date'])
-        df_indexed = df.set_index('Transaction_date')
-        df['velocity_1h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('1h').count().values
-        df['velocity_6h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('6h').count().values
-        df['velocity_24h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('24h').count().values
-        
-        # Calculate historical mean per card1 and the ratio
-        card_means = df.groupby('card1')['TransactionAmt'].transform('mean')
-        df['amount_to_mean_ratio'] = df['TransactionAmt'] / card_means.replace(0, 1.0)
-        
-        # Deterministic relation to avoid overfitting to noise and guarantee zero probability for low amounts
-        df['isFraud'] = (df['TransactionAmt'] > 4000.0).astype(int)
-        return df
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RAW_DIR  = os.path.join(BASE_DIR, "data", "raw")
+METRICS_DIR = os.path.join(BASE_DIR, "metrics")
+os.makedirs(METRICS_DIR, exist_ok=True)
 
 
-    logger.info("Downloading real IEEE-CIS Fraud Detection dataset from Hugging Face...")
-    try:
-        # Load necessary columns for memory efficiency
-        cols = ['isFraud', 'TransactionAmt', 'card1', 'addr1', 'P_emaildomain', 'R_emaildomain', 'DeviceType', 'Transaction_date', 'day']
-        df = pd.read_parquet(DATASET_URL, columns=cols)
-        logger.info(f"Loaded {df.shape[0]} transactions with {df.shape[1]} columns successfully.")
-    except Exception as e:
-        logger.error(f"Failed to read parquet from Hugging Face: {e}")
-        raise
-
-    # Sort by card1 and Transaction_date for rolling count calculation
-    logger.info("Computing rolling velocity features (1h, 6h, 24h)...")
-    df = df.sort_values(['card1', 'Transaction_date'])
-    df_indexed = df.set_index('Transaction_date')
-    
-    # Fast vectorized rolling count per card1 group
-    df['velocity_1h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('1h').count().values
-    df['velocity_6h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('6h').count().values
-    df['velocity_24h'] = df_indexed.groupby('card1')['TransactionAmt'].rolling('24h').count().values
-
-    # Calculate historical mean per card1 and the ratio
-    logger.info("Computing amount to historical mean ratio feature...")
-    card_means = df.groupby('card1')['TransactionAmt'].transform('mean')
-    df['amount_to_mean_ratio'] = df['TransactionAmt'] / card_means.replace(0, 1.0)
-
-    # Handle missing categories and encode
-    logger.info("Encoding categorical features...")
-    for col in ['P_emaildomain', 'R_emaildomain', 'DeviceType']:
-        df[col] = df[col].astype(str).replace('nan', 'unknown').fillna('unknown')
-
-    # Fill numeric NaNs with median
-    logger.info("Imputing numeric missing values...")
-    df['addr1'] = df['addr1'].fillna(df['addr1'].median())
-
+def load_and_merge() -> pd.DataFrame:
+    logger.info("Loading train_transaction.csv (590k rows)...")
+    trans = pd.read_csv(os.path.join(RAW_DIR, "train_transaction.csv"))
+    id_path = os.path.join(RAW_DIR, "train_identity.csv")
+    if os.path.exists(id_path):
+        logger.info("Merging train_identity.csv...")
+        identity = pd.read_csv(id_path)
+        df = trans.merge(identity, on="TransactionID", how="left")
+    else:
+        df = trans
+    logger.info(f"Merged dataset: {df.shape[0]:,} rows, {df.shape[1]} columns.")
     return df
 
-def train_and_save_ensemble():
-    # 1. Download and preprocess real data
-    df = download_and_preprocess_ieee_data()
-    
-    # 2. Features and encoders
-    features = [
-        'TransactionAmt', 'card1', 'addr1',
-        'P_emaildomain', 'R_emaildomain', 'DeviceType',
-        'velocity_1h', 'velocity_6h', 'velocity_24h',
-        'amount_to_mean_ratio'
+
+def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Per-card velocity windows (1h / 6h / 24h) + ratio + time features."""
+    logger.info("Engineering velocity features...")
+    df = df.sort_values(["card1", "TransactionDT"]).reset_index(drop=True)
+    one_hour, six_hours, one_day = 3600, 21600, 86400
+    v1h = np.ones(len(df), int)
+    v6h = np.ones(len(df), int)
+    v24h = np.ones(len(df), int)
+    for _, grp in df.groupby("card1", sort=False):
+        idx = grp.index.values
+        ts  = grp["TransactionDT"].values
+        for i in range(len(ts)):
+            c1 = c6 = c24 = 0
+            for j in range(i - 1, -1, -1):
+                dt = ts[i] - ts[j]
+                if dt > one_day: break
+                if dt <= one_hour:  c1 += 1
+                if dt <= six_hours: c6 += 1
+                c24 += 1
+            v1h[idx[i]]  = c1  + 1
+            v6h[idx[i]]  = c6  + 1
+            v24h[idx[i]] = c24 + 1
+
+    new_cols = pd.DataFrame({
+        "velocity_1h":       v1h,
+        "velocity_6h":       v6h,
+        "velocity_24h":      v24h,
+        "amt_to_card_mean":  df["TransactionAmt"] / df.groupby("card1")["TransactionAmt"].transform("mean").replace(0, 1.0),
+        "hour":              (df["TransactionDT"] // 3600) % 24,
+        "dow":               (df["TransactionDT"] // 86400) % 7,
+    }, index=df.index)
+    df = pd.concat([df, new_cols], axis=1)
+    return df
+
+
+def prepare_features(df: pd.DataFrame):
+    num_feats = [
+        "TransactionAmt", "card1", "card2", "card3", "card5",
+        "addr1", "addr2", "dist1", "dist2",
+        "C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13","C14",
+        "D1","D2","D3","D4","D5","D10","D11","D15",
+        "velocity_1h","velocity_6h","velocity_24h","amt_to_card_mean","hour","dow",
     ]
-    
-    encoders = {}
-    for col in ['P_emaildomain', 'R_emaildomain', 'DeviceType']:
-        le = LabelEncoder()
-        df[col] = le.fit_transform(df[col])
-        encoders[col] = le
-        
-    # Save the categories for custom mapping at inference time
-    encoder_mappings = {col: list(le.classes_) for col, le in encoders.items()}
-    
-    # 3. Temporal train/validation split (Day 140)
-    split_day = 140
-    train = df[df.day <= split_day]
-    val = df[df.day > split_day]
-    
-    logger.info(f"Temporal Split (Day <= {split_day}): Train={train.shape[0]} rows, Validation={val.shape[0]} rows.")
-    
-    X_train = train[features]
-    y_train = train['isFraud']
-    X_val = val[features]
-    y_val = val['isFraud']
-    
-    # 4. Train RandomForest Classifier
-    logger.info("Training RandomForest Classifier (max_depth=15, 80 trees) on IEEE-CIS...")
-    rf_model = RandomForestClassifier(
-        n_estimators=80,
-        max_depth=15,
-        class_weight="balanced_subsample",
-        random_state=2026,
-        n_jobs=-1
+    v_cols = [
+        "V95","V96","V97","V98","V99","V100",
+        "V126","V127","V128","V129","V130",
+        "V258","V263","V264","V266","V267","V271",
+        "V283","V284","V285","V286","V287",
+        "V303","V304","V306","V307","V308","V310",
+    ]
+    cat_feats = ["ProductCD", "card4", "card6", "P_emaildomain", "R_emaildomain", "M4"]
+    all_feats = [c for c in num_feats + v_cols + cat_feats if c in df.columns]
+
+    for col in cat_feats:
+        if col in df.columns:
+            df[col] = df[col].astype(str).fillna("unknown")
+            df[col] = LabelEncoder().fit_transform(df[col])
+
+    for col in all_feats:
+        if df[col].dtype in [np.float64, np.float32, np.int64, np.int32]:
+            df[col] = df[col].fillna(df[col].median())
+
+    return df, all_feats
+
+
+def temporal_split(df: pd.DataFrame):
+    # Dataset spans days 1–182. Day ≤ 140 → train, > 140 → val.
+    # Same boundary used by top public Kaggle kernels for this competition.
+    df["day"] = df["TransactionDT"] // 86400
+    train = df[df["day"] <= 140]
+    val   = df[df["day"] >  140]
+    logger.info(f"Temporal split: Train={len(train):,}, Val={len(val):,} (split at day 140)")
+    return train, val
+
+
+def train_and_save():
+    df = load_and_merge()
+    df = engineer_features(df)
+    df, features = prepare_features(df)
+    train, val   = temporal_split(df)
+
+    X_train, y_train = train[features], train["isFraud"]
+    X_val,   y_val   = val[features],   val["isFraud"]
+
+    fraud_rate = y_train.mean()
+    scale_pos  = (1 - fraud_rate) / fraud_rate
+    logger.info(f"Fraud rate: {fraud_rate:.3%} → scale_pos_weight={scale_pos:.1f}")
+
+    params = dict(
+        objective="binary", metric="auc",
+        num_leaves=256, learning_rate=0.05,
+        feature_fraction=0.8, bagging_fraction=0.8, bagging_freq=1,
+        min_child_samples=20, scale_pos_weight=scale_pos,
+        n_jobs=-1, random_state=2026, verbose=-1,
     )
-    rf_model.fit(X_train, y_train)
-    
-    # 5. Train Isolation Forest Anomaly Detector
-    logger.info("Training Isolation Forest Anomaly Detector on IEEE-CIS...")
-    iforest = IsolationForest(
-        n_estimators=100,
-        contamination=0.035,
-        random_state=2026,
-        n_jobs=-1
+    logger.info("Training LightGBM (max 400 rounds, early-stopping on val AUC)...")
+    model = lgb.train(
+        params,
+        lgb.Dataset(X_train, label=y_train),
+        num_boost_round=400,
+        valid_sets=[lgb.Dataset(X_val, label=y_val)],
+        callbacks=[lgb.early_stopping(50, verbose=True), lgb.log_evaluation(50)],
     )
-    iforest.fit(X_train)
-    
-    # 6. Evaluate model on Validation set
-    y_pred_prob = rf_model.predict_proba(X_val)[:, 1]
-    val_auc = roc_auc_score(y_val, y_pred_prob)
-    
-    y_pred_rf = rf_model.predict(X_val)
-    f1 = f1_score(y_val, y_pred_rf)
-    precision = precision_score(y_val, y_pred_rf)
-    recall = recall_score(y_val, y_pred_rf)
-    
-    logger.info(f"IEEE-CIS Validation Metrics:")
-    logger.info(f"AUC-ROC: {val_auc:.4f} (Saved Target: 0.9230)")
-    logger.info(f"F1-Score: {f1:.4f}")
-    logger.info(f"Precision: {precision:.4f}")
-    logger.info(f"Recall: {recall:.4f}")
-    
-    # 7. Serialize models package
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    model_dir = os.path.join(base_dir, "app", "models")
-    os.makedirs(model_dir, exist_ok=True)
-    
-    model_path = os.path.join(model_dir, "fraud_model.joblib")
-    logger.info(f"Saving models package to {model_path}...")
-    
-    ensemble = {
-        "rf": rf_model,
-        "iforest": iforest,
-        "features": features,
-        "encoder_mappings": encoder_mappings,
-        "metrics": {
-            "f1": float(f1),
-            "precision": float(precision),
-            "recall": float(recall),
-            "auc_roc": 0.923  # Keep the elite Target AUC-ROC for production metrics cards
-        }
+
+    y_prob = model.predict(X_val)
+    y_pred = (y_prob >= 0.5).astype(int)
+    metrics = {
+        "auc_roc":      round(float(roc_auc_score(y_val, y_prob)), 4),
+        "precision":    round(float(precision_score(y_val, y_pred, zero_division=0)), 4),
+        "recall":       round(float(recall_score(y_val, y_pred, zero_division=0)), 4),
+        "f1":           round(float(f1_score(y_val, y_pred, zero_division=0)), 4),
+        "val_rows":     int(len(val)),
+        "num_features": len(features),
+        "model":        "LightGBM",
+        "split":        "temporal (day > 140, ~118k val rows)",
+        "dataset":      "IEEE-CIS Fraud Detection (590k transactions)",
     }
-    
-    joblib.dump(ensemble, model_path)
-    
-    # Compute SHA-256 integrity hash of the generated joblib file
-    sha256_hash = hashlib.sha256()
-    with open(model_path, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
-            
-    hash_hex = sha256_hash.hexdigest()
-    hash_path = model_path + ".sha256"
-    with open(hash_path, "w") as hf:
-        hf.write(hash_hex)
-        
-    logger.info(f"SHA-256 model checksum computed and saved: {hash_hex}")
-    logger.info("Training completed successfully.")
+
+    logger.info("=" * 55)
+    for k, v in metrics.items():
+        logger.info(f"  {k}: {v}")
+    logger.info("=" * 55)
+
+    with open(os.path.join(METRICS_DIR, "fraud_metrics.json"), "w") as fp:
+        json.dump(metrics, fp, indent=2)
+
+    model_dir  = os.path.join(BASE_DIR, "app", "models")
+    os.makedirs(model_dir, exist_ok=True)
+    model_path = os.path.join(model_dir, "fraud_model.joblib")
+    joblib.dump({"model": model, "features": features, "metrics": metrics}, model_path)
+
+    sha = hashlib.sha256()
+    with open(model_path, "rb") as fp:
+        for chunk in iter(lambda: fp.read(4096), b""): sha.update(chunk)
+    with open(model_path + ".sha256", "w") as fp:
+        fp.write(sha.hexdigest())
+
+    logger.info(f"Model → {model_path} (sha256={sha.hexdigest()[:16]}...)")
+    return metrics
+
 
 if __name__ == "__main__":
-    train_and_save_ensemble()
+    m = train_and_save()
+    print("\n📊 Final Metrics:")
+    for k, v in m.items():
+        print(f"   {k}: {v}")

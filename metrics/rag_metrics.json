@@ -1,0 +1,20 @@
+{
+  "top_3_accuracy_pct": 93.3,
+  "correct": 28,
+  "total": 30,
+  "failed_queries": [
+    {
+      "query": "Can a patient pay a hospital bill of INR 3 lakhs via a single UPI payment?",
+      "expected": "RBI_UPI_LIMITS_2024",
+      "retrieved": ["NPCI_IMPS_2023", "NPCI_IMPS_2023", "SEBI_PMS_2020"]
+    },
+    {
+      "query": "How quickly must a publicly listed company announce a major business development?",
+      "expected": "SEBI_LODR_2015",
+      "retrieved": ["SEBI_ESG_2023", "SEBI_ESG_2023", "SEBI_INSIDER_TRADING_2015"]
+    }
+  ],
+  "corpus_size": 20,
+  "query_style": "manually paraphrased — no verbatim keyword overlap",
+  "retriever": "TF-IDF cosine (ChromaDB-backed)"
+}
