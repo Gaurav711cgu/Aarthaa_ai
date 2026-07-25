@@ -115,7 +115,7 @@ class GraphFraudScorer:
                 self.model.eval()
                 self.model_loaded = True
                 logger.info(f"Loaded GraphSAGE model from {MODEL_PATH}")
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError) as e:
                 logger.error(f"Failed to load GraphSAGE GNN model state dict: {e}")
         else:
             logger.warning(f"GraphSAGE model checkpoint not found at {MODEL_PATH}. GNN scoring will fallback to heuristic card-velocity risk.")
@@ -139,7 +139,7 @@ class GraphFraudScorer:
                 probs = self.model(x, adj_norm)
                 target_prob = float(probs[-1].item())
             return {"graph_available": True, "gnn_score": target_prob}
-        except Exception as e:
+        except (RuntimeError, ValueError, IndexError) as e:
             logger.error(f"Error scoring with GraphSAGE GNN: {e}")
             return {"graph_available": False, "gnn_score": None}
 

@@ -114,7 +114,7 @@ def run_fraud_scoring(amount: float, hour: int, velocity: int, distance: float, 
     badge_color = color_map.get(tier, "#94A3B8")
     
     badge_html = f"""
-    <div style="background-color: {badge_color}; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 20px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+    <div style="background-color: {badge_color}; color: white; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 20px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0[...]
         {tier} RISK TIER
     </div>
     """
@@ -189,9 +189,9 @@ def upload_statement_callback(file_obj):
             return summary_info, gr.update(choices=choices, value=choices[-1] if choices else None)
         finally:
             db.close()
-    except Exception as e:
+    except (IOError, ValueError) as e:
         logger.error(f"Error handling UI upload: {e}")
-        return f"### ❌ Parsing Failed\nError detail: {str(e)}", gr.update()
+        return f"### ❌ Parsing Failed\nError detail: {e!s}", gr.update()
 
 def run_statement_query(dropdown_val: str, query: str):
     """Callback for FinLens statement natural language auditing."""
@@ -216,9 +216,9 @@ def run_statement_query(dropdown_val: str, query: str):
             )
         finally:
             db.close()
-    except Exception as e:
+    except (ValueError, IOError) as e:
         logger.error(f"Error executing statement query: {e}")
-        return f"Failed to execute query: {str(e)}", "", "Execution Failed"
+        return f"Failed to execute query: {e!s}", "", "Execution Failed"
 
 def check_monitoring_drift():
     """Callback for Monitoring drift analysis."""
@@ -278,7 +278,7 @@ def build_dashboard():
     try:
         statements = db.query(BankStatement).all()
         initial_choices = [f"ID {s.id} - {s.bank_name} (Ending Balance: ₹{s.ending_balance:,.2f})" for s in statements]
-    except Exception:
+    except (IOError, ValueError):
         initial_choices = []
     finally:
         db.close()
@@ -394,7 +394,7 @@ def build_dashboard():
                     with gr.Column(scale=2):
                         gr.Markdown("#### Evidently AI Report")
                         drift_iframe = gr.HTML("""
-                        <div style="border:1px solid rgba(255,255,255,0.1); border-radius:8px; background-color:#1E293B; height:300px; display:flex; justify-content:center; align-items:center; color:#94A3B8;">
+                        <div style="border:1px solid rgba(255,255,255,0.1); border-radius:8px; background-color:#1E293B; height:300px; display:flex; justify-content:center; align-items:center; co[...]
                             Click 'Calculate Live Data Drift' to render the fully interactive Evidently AI HTML dashboard report.
                         </div>
                         """)

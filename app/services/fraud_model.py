@@ -76,7 +76,7 @@ class FraudScoringEngine:
                 self.is_compiled = True
                 logger.info("Ensemble fraud scoring models and SHAP explainer loaded successfully.")
                 return
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError) as e:
                 logger.error(f"Error loading fraud models package: {e}")
                 
         # Default fallback flag
@@ -98,7 +98,7 @@ class FraudScoringEngine:
             train_and_save_ensemble()
             self._load_model()
             logger.info("Background thread successfully trained and loaded the fraud model.")
-        except Exception as e:
+        except (RuntimeError, ValueError, ImportError) as e:
             logger.error(f"Failed to auto-train model in background thread: {e}")
         finally:
             self.is_training = False
@@ -123,7 +123,7 @@ class FraudScoringEngine:
                 "velocity_6h": int(count_6h),
                 "velocity_24h": int(count_24h)
             }
-        except Exception as e:
+        except (RuntimeError, ConnectionError, ValueError) as e:
             logger.error(f"Redis velocity feature lookup failed: {e}. Defaulting to fallback 1.")
             return {"velocity_1h": 1, "velocity_6h": 1, "velocity_24h": 1}
 
@@ -254,7 +254,7 @@ class FraudScoringEngine:
                     "model_source": "RandomForest+IsolationForest_Ensemble",
                     "meta_dict": meta_dict
                 }
-            except Exception as e:
+            except (RuntimeError, ValueError, AttributeError) as e:
                 logger.error(f"Inference execution error: {e}. Defaulting to heuristic fallback.")
                 
         # Heuristic Fallback

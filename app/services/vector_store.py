@@ -49,7 +49,7 @@ class LocalVectorStore:
                     # Create vector extension if possible
                     try:
                         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-                    except Exception as ext_err:
+                    except (RuntimeError, ValueError) as ext_err:
                         logger.warning(f"Could not enable pgvector extension (non-superuser context?): {ext_err}")
                     
                     # Create table regulations
@@ -72,11 +72,11 @@ class LocalVectorStore:
                             USING hnsw (embedding vector_cosine_ops)
                             WITH (m = 16, ef_construction = 64);
                         """))
-                    except Exception as idx_err:
+                    except (RuntimeError, ValueError) as idx_err:
                         logger.warning(f"Could not create HNSW index: {idx_err}. Falling back to standard index.")
                         conn.execute(text("CREATE INDEX IF NOT EXISTS regs_source_sec ON regulations (source, section);"))
                 logger.info("pgvector table regulations and indexes initialized successfully.")
-            except Exception as pe:
+            except (RuntimeError, ValueError, ConnectionError) as pe:
                 logger.error(f"pgvector initialization failed: {pe}. Falling back to ChromaDB/TF-IDF.")
                 self.use_pgvector = False
 
@@ -93,7 +93,7 @@ class LocalVectorStore:
                     metadata={"hnsw:space": "cosine"}
                 )
                 logger.info("ChromaDB persistent collection initialized successfully.")
-            except Exception as ce:
+            except (RuntimeError, ValueError) as ce:
                 logger.error(f"ChromaDB initialization failed: {ce}. Falling back to standard scikit-learn search.")
                 self.use_chroma = False
 
@@ -143,7 +143,7 @@ class LocalVectorStore:
                                         metadatas=metadatas,
                                         ids=ids
                                     )
-                                except Exception as add_err:
+                                except (RuntimeError, ValueError) as add_err:
                                     logger.warning(f"ChromaDB add failed ({add_err}). Recreating collection...")
                                     self.chroma_client.delete_collection("regulations_collection")
                                     self.chroma_collection = self.chroma_client.create_collection(
@@ -157,14 +157,14 @@ class LocalVectorStore:
                                         ids=ids
                                     )
                                 logger.info(f"Successfully populated ChromaDB with {len(ids)} chunks.")
-                        except Exception as e:
+                        except (RuntimeError, ValueError) as e:
                             logger.error(f"Failed to populate ChromaDB: {e}")
                     
                     # Populate pgvector if empty and active
                     if self.use_pgvector:
                         self._populate_pgvector_from_db()
                 return
-            except Exception as e:
+            except (json.JSONDecodeError, OSError, ValueError) as e:
                 logger.error(f"Failed to load regulation embeddings: {e}")
 
         logger.info("Regulation embeddings store empty — ready for ingestion.")
@@ -207,7 +207,7 @@ class LocalVectorStore:
                         "metadata": json.dumps({"source": source_val, "section": section_val})
                     })
             logger.info("pgvector table population completed successfully.")
-        except Exception as e:
+        except (RuntimeError, ValueError, ConnectionError) as e:
             logger.error(f"Failed to populate pgvector on startup: {e}")
 
     def _persist(self):
@@ -227,10 +227,10 @@ class LocalVectorStore:
                 cf.write(str(crc))
 
             logger.info(f"Serialized {len(self.embeddings_db)} regulation records to JSON store.")
-        except Exception as e:
+        except (OSError, ValueError) as e:
             logger.error(f"Failed to serialize embeddings: {e}")
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    # ── Public API ─────────────────────────────────────────────────────────[...]
 
     def add_chunks(self, chunks: List[Dict[str, Any]]):
         """Adds text chunks and fits the TF-IDF vectorizer on the full corpus."""
@@ -265,7 +265,7 @@ class LocalVectorStore:
                             metadatas=metadatas,
                             ids=ids
                         )
-                    except Exception as upsert_err:
+                    except (RuntimeError, ValueError) as upsert_err:
                         logger.warning(f"ChromaDB upsert failed ({upsert_err}). Recreating collection...")
                         self.chroma_client.delete_collection("regulations_collection")
                         self.chroma_collection = self.chroma_client.create_collection(
@@ -279,7 +279,7 @@ class LocalVectorStore:
                             ids=ids
                         )
                     logger.info("ChromaDB persistent collection updated successfully.")
-                except Exception as e:
+                except (RuntimeError, ValueError) as e:
                     logger.error(f"Failed to update ChromaDB collection: {e}")
 
             # Update pgvector PostgreSQL DB
@@ -318,7 +318,7 @@ class LocalVectorStore:
                                 "metadata": json.dumps({"source": source_val, "section": section_val})
                             })
                     logger.info("pgvector table update completed successfully.")
-                except Exception as e:
+                except (RuntimeError, ValueError, ConnectionError) as e:
                     logger.error(f"Failed to update pgvector database: {e}")
 
             logger.info("Vectorizer re-fitted on updated corpus.")
@@ -343,7 +343,7 @@ class LocalVectorStore:
                 
                 results = []
                 with engine.connect() as conn:
-                    # Cosine distance: <=>
+                    # Cosine distance: <>
                     # Cosine similarity = 1 - Cosine distance
                     sql_res = conn.execute(text("""
                         SELECT chunk_text, source, section, 
@@ -364,7 +364,7 @@ class LocalVectorStore:
                             "score": float(row[3]) if row[3] is not None else 0.8
                         })
                     return results
-            except Exception as e:
+            except (RuntimeError, ValueError, ConnectionError) as e:
                 logger.error(f"pgvector query execution failed: {e}. Falling back to standard search.")
 
         # Try querying ChromaDB
@@ -390,7 +390,7 @@ class LocalVectorStore:
                             "score": float(1.0 - distances[i]) if distances else 0.8
                         })
                     return results
-            except Exception as e:
+            except (RuntimeError, ValueError) as e:
                 logger.error(f"ChromaDB query execution failed: {e}. Falling back to standard scikit-learn cosine search.")
 
         # Standard TF-IDF cosine similarity fallback

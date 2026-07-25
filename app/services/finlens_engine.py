@@ -49,8 +49,8 @@ class SQLQueryTracker(BaseCallbackHandler):
                 try:
                     import json
                     cleaned_query = json.loads(cleaned_query).get("query", cleaned_query)
-                except Exception:
-                    pass
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.debug(f"Failed to parse JSON query: {e}")
             self.queries.append(cleaned_query)
 
 class FinLensQueryEngine:
@@ -85,7 +85,7 @@ class FinLensQueryEngine:
                     suffix=suffix
                 )
                 logger.info("LangChain SQL Agent successfully initialized with Groq backend.")
-            except Exception as e:
+            except (ConnectionError, RuntimeError, ValueError) as e:
                 logger.error(f"Failed to initialize LangChain SQL Agent: {e}")
         else:
             logger.warning("GROQ_API_KEY not found. FinLens operating in offline keyword-routing mode.")
@@ -129,9 +129,9 @@ class FinLensQueryEngine:
                 answer = result.get("output", "")
                 
                 numerical_value = 0.0
-                monetary_matches = re.findall(r"(?:₹|INR|Rs\.?)\s*([\d,]+\.?\d*)", answer)
+                monetary_matches = re.findall(r"(?:₹|INR|Rs\.?)\ s*([\ d,]+\.?\ d*)", answer)
                 if not monetary_matches:
-                    monetary_matches = re.findall(r"(\d[\d,]*\.?\d*)", answer)
+                    monetary_matches = re.findall(r"(\ d[\ d,]*\.?\ d*)", answer)
                 if monetary_matches:
                     try:
                         num_str = monetary_matches[0].replace(",", "")
@@ -148,7 +148,7 @@ class FinLensQueryEngine:
                     "compiled_sql": compiled_sql,
                     "audit_status": "VERIFIED_VIA_SQL_DATABASE"
                 }
-            except Exception as agent_err:
+            except (RuntimeError, ValueError, ConnectionError) as agent_err:
                 logger.error(f"FinLens SQL Agent execution failed: {agent_err}. Falling back to offline router.")
 
         # 2. Offline Fallback (High-fidelity 15+ pattern matching keyword router)
@@ -230,7 +230,7 @@ class FinLensQueryEngine:
                 "compiled_sql": sql_query.strip().replace("\n", " ").replace("  ", " "),
                 "audit_status": "VERIFIED_VIA_SQL_DATABASE"
             }
-        except Exception as e:
+        except (RuntimeError, ValueError, OSError) as e:
             logger.error(f"Offline SQL routing execution failed: {e}")
             return {
                 "answer": "Failed to compile SQL query to extract statement data.",
