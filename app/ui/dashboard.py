@@ -192,7 +192,7 @@ def upload_statement_callback(file_obj):
             return summary_info, gr.update(choices=choices, value=choices[-1] if choices else None)
         finally:
             db.close()
-    except (IOError, ValueError) as e:
+    except (OSError, ValueError) as e:
         logger.error(f"Error handling UI upload: {e}")
         return f"### ❌ Parsing Failed\nError detail: {e!s}", gr.update()
 
