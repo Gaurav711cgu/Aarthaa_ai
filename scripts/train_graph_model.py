@@ -1,10 +1,8 @@
 import os
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import pandas as pd
-import numpy as np
 from sklearn.metrics import roc_auc_score, average_precision_score
 from app.services.graph_fraud import FraudGraphSAGE, GraphBuilder, MODEL_PATH
 

@@ -2,7 +2,6 @@ import pytest
 
 try:
     import torch
-    import numpy as np
     from app.services.graph_fraud import SAGEConv, FraudGraphSAGE, GraphBuilder, graph_scorer
     TORCH_AVAILABLE = True
 except ImportError:

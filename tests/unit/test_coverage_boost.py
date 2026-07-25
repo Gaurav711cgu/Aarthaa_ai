@@ -12,7 +12,7 @@ Coverage-boosting tests targeting the lowest-coverage modules:
 
 import uuid
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from app.main import app
 

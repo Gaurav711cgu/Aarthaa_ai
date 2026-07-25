@@ -181,9 +181,9 @@ def main():
     plt.close()
     logger.info(f"Threshold curve plot saved to {plot_path}.")
 
-    print(f"\n================================================================================")
-    print(f"OPERATING POINT SELECTION COMPLETE")
-    print(f"================================================================================")
+    print("\n================================================================================")
+    print("OPERATING POINT SELECTION COMPLETE")
+    print("================================================================================")
     print(f"Selected Threshold:       {operating_point['threshold']}")
     print(f"Precision at Threshold:   {operating_point['precision']:.4f}")
     print(f"Recall at Threshold:      {operating_point['recall']:.4f}")
@@ -191,7 +191,7 @@ def main():
     print(f"False Positive Rate:      {operating_point['false_positive_rate']:.4f}")
     print(f"Alerts Generated:         {operating_point['alerts_generated']:,}")
     print(f"Missed Fraud Count:       {operating_point['missed_fraud']:,}")
-    print(f"================================================================================\n")
+    print("================================================================================\n")
 
 if __name__ == "__main__":
     main()

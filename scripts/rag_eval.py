@@ -17,8 +17,7 @@ Run:
 import os
 import sys
 import json
-import numpy as np
-from typing import List, Dict, Tuple
+from typing import List, Dict
 
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(base_dir)
@@ -214,7 +213,7 @@ def evaluate_retriever_ablation(chunks: List[Dict]) -> Dict:
     }
 
 def main():
-    print(f"[1/3] Ingesting 150+ regulatory document sections into ChromaDB / pgvector store...")
+    print("[1/3] Ingesting 150+ regulatory document sections into ChromaDB / pgvector store...")
     chunks = []
     for doc_tag, sec_tag, body in DOCUMENTS:
         doc_source = doc_tag.replace("[DOCUMENT: ", "").replace("]", "")
@@ -225,16 +224,16 @@ def main():
             "section": sec_name
         })
 
-    print(f"[2/3] Executing 250-query RAG evaluation suite...")
+    print("[2/3] Executing 250-query RAG evaluation suite...")
     metrics_data = evaluate_retriever_ablation(chunks)
     
-    print(f"\n  Empirical RAG Benchmark Results:")
+    print("\n  Empirical RAG Benchmark Results:")
     print(f"    Hybrid Top-3 Accuracy: {metrics_data['retriever_ablation_results']['hybrid_tfidf_dense']['top3_accuracy'] * 100:.1f}%")
     print(f"    Hybrid Top-1 Accuracy: {metrics_data['retriever_ablation_results']['hybrid_tfidf_dense']['top1_accuracy'] * 100:.1f}%")
     print(f"    Dense-Only Top-3 Acc:   {metrics_data['retriever_ablation_results']['dense_only_chroma_pgvector']['top3_accuracy'] * 100:.1f}%")
     print(f"    Hybrid vs Dense Delta:  +{round((metrics_data['retriever_ablation_results']['hybrid_tfidf_dense']['top3_accuracy'] - metrics_data['retriever_ablation_results']['dense_only_chroma_pgvector']['top3_accuracy']) * 100, 1)}%")
 
-    print(f"[3/3] Saving RAG metrics report to metrics/rag_metrics.json...")
+    print("[3/3] Saving RAG metrics report to metrics/rag_metrics.json...")
     metrics_dir = os.path.join(base_dir, "metrics")
     os.makedirs(metrics_dir, exist_ok=True)
     report_path = os.path.join(metrics_dir, "rag_metrics.json")

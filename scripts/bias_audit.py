@@ -14,7 +14,7 @@ import json
 import logging
 import pandas as pd
 import numpy as np
-from sklearn.metrics import roc_auc_score, precision_score, recall_score
+from sklearn.metrics import roc_auc_score
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -115,9 +115,9 @@ def main():
         "subgroup_audits": []
     }
 
-    print(f"\n================================================================================")
-    print(f"ARTHA AI — SUBGROUP BIAS & FAIRNESS AUDIT REPORT")
-    print(f"================================================================================")
+    print("\n================================================================================")
+    print("ARTHA AI — SUBGROUP BIAS & FAIRNESS AUDIT REPORT")
+    print("================================================================================")
 
     overall_passed = True
     for col in SUBGROUP_COLUMNS:
@@ -137,10 +137,10 @@ def main():
     with open(output_path, "w") as f:
         json.dump(audit_results, f, indent=2)
 
-    print(f"================================================================================")
+    print("================================================================================")
     print(f"OVERALL BIAS AUDIT STATUS: {'PASS' if overall_passed else 'WARNING - SUBGROUP GAP DETECTED'}")
     print(f"Audit JSON written to: {output_path}")
-    print(f"================================================================ algorithm\n")
+    print("================================================================ algorithm\n")
 
 
 if __name__ == "__main__":
