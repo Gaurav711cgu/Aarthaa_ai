@@ -43,6 +43,6 @@ def get_metrics_payload() -> tuple[bytes, str]:
     try:
         data = generate_latest(registry)
         return data, CONTENT_TYPE_LATEST
-    except Exception as e:
+    except (RuntimeError, ValueError) as e:
         logger.error(f"Failed to generate Prometheus metrics scraping data: {e}")
         return b"", ""

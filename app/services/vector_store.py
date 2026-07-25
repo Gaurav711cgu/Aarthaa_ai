@@ -164,7 +164,7 @@ class LocalVectorStore:
                     if self.use_pgvector:
                         self._populate_pgvector_from_db()
                 return
-            except (json.JSONDecodeError, IOError, ValueError) as e:
+            except (json.JSONDecodeError, OSError, ValueError) as e:
                 logger.error(f"Failed to load regulation embeddings: {e}")
 
         logger.info("Regulation embeddings store empty — ready for ingestion.")
@@ -227,7 +227,7 @@ class LocalVectorStore:
                 cf.write(str(crc))
 
             logger.info(f"Serialized {len(self.embeddings_db)} regulation records to JSON store.")
-        except (IOError, ValueError) as e:
+        except (OSError, ValueError) as e:
             logger.error(f"Failed to serialize embeddings: {e}")
 
     # ── Public API ─────────────────────────────────────────────────────────[...]
