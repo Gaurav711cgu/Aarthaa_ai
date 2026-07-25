@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: artha_password_secure_2026
       POSTGRES_DB: artha_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

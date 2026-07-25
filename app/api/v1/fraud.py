@@ -174,10 +174,13 @@ async def score_transaction(
         card1_raw = tx_dict.get("card1")
         card1 = int(card1_raw if card1_raw is not None else 1004)
         
-        recent_txs_raw = db.execute(
-            text("SELECT card1, amount, timestamp, addr1, P_emaildomain, R_emaildomain, DeviceType, velocity_1h, velocity_6h, velocity_24h FROM transactions WHERE card1 = :card1 ORDER BY timestamp DESC LIMIT 50"),
-            {"card1": card1}
-        ).fetchall()
+        try:
+            recent_txs_raw = db.execute(
+                text('SELECT card1, amount, timestamp, addr1, "P_emaildomain", "R_emaildomain", "DeviceType", velocity_1h, velocity_6h, velocity_24h FROM transactions WHERE card1 = :card1 ORDER BY timestamp DESC LIMIT 50'),
+                {"card1": card1}
+            ).fetchall()
+        except Exception:
+            recent_txs_raw = []
         
         recent_txs = []
         for r in recent_txs_raw:
