@@ -219,7 +219,7 @@ def run_statement_query(dropdown_val: str, query: str):
             )
         finally:
             db.close()
-    except (ValueError, IOError) as e:
+    except (OSError, ValueError) as e:
         logger.error(f"Error executing statement query: {e}")
         return f"Failed to execute query: {e!s}", "", "Execution Failed"
 
