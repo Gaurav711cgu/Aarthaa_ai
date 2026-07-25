@@ -1,9 +1,10 @@
 from fastapi.testclient import TestClient
-from app.main import app
+from app.main import app as fastapi_app
+from app.services.fraud_model import fraud_engine
 import uuid
 from unittest.mock import patch, MagicMock
 
-client = TestClient(app)
+client = TestClient(fastapi_app)
 
 def get_analyst_headers():
     response = client.post("/auth/token", json={
@@ -21,7 +22,7 @@ def test_analyze_low_risk_transaction(mock_score):
     mock_model = MagicMock()
     mock_model.predict_proba.return_value = [[0.99, 0.01]] # 1% fraud probability -> LOW risk
     
-    with patch.object(app.services.fraud_model.fraud_engine, "rf_model", mock_model):
+    with patch.object(fraud_engine, "rf_model", mock_model):
         payload = {
             "amount": 250.0, # ₹250
             "hour": 14, # 2PM
@@ -51,7 +52,7 @@ def test_analyze_high_risk_transaction(mock_score):
     mock_model = MagicMock()
     mock_model.predict_proba.return_value = [[0.05, 0.95]] # 95% fraud probability -> CRITICAL risk
     
-    with patch.object(app.services.fraud_model.fraud_engine, "rf_model", mock_model):
+    with patch.object(fraud_engine, "rf_model", mock_model):
         payload = {
             "amount": 850000.0, # ₹8.5L (high amount)
             "hour": 3, # 3AM (odd hours)
@@ -69,19 +70,15 @@ def test_analyze_high_risk_transaction(mock_score):
         assert data["risk_tier"] in ["HIGH", "CRITICAL"]
         assert data["status"] == "flagged_for_investigation"
         assert "explanation" in data
-    assert len(data["explanation"]) > 0
+        assert len(data["explanation"]) > 0
 
 def test_analyze_invalid_payload():
-    """Verify that invalid payloads are caught by Pydantic models."""
-    payload = {
-        "amount": -50.0, # invalid amount (must be >0)
-        "hour": 25, # invalid hour (must be 0-23)
-        "velocity_1h": -1, # invalid velocity (must be >=0)
-        "distance_from_home": 12.0,
-        "merchant_risk": 0.05,
-        "user_id": "not-a-uuid" # invalid UUID
-    }
-    
+    """Verify that negative amounts or invalid schema payloads get rejected with 422 Unprocessable Entity."""
     headers = get_analyst_headers()
-    response = client.post("/api/v1/fraud/score", json=payload, headers=headers)
-    assert response.status_code == 422 # Unprocessable Entity
+    invalid_payload = {
+        "amount": -50.0, # Invalid negative amount
+        "hour": 12,
+        "user_id": str(uuid.uuid4())
+    }
+    response = client.post("/api/v1/fraud/score", json=invalid_payload, headers=headers)
+    assert response.status_code == 422

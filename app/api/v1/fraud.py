@@ -97,6 +97,17 @@ def get_investigation_priority(fraud_prob: float, amount: float) -> tuple[str, s
     else:
         return "CLEAR", "LOW"
 
+class ShapChartData(BaseModel):
+    features: List[str] = []
+    labels: List[str] = []
+    values: List[float] = []
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.features and self.labels:
+            self.features = self.labels
+        elif not self.labels and self.features:
+            self.labels = self.features
+
 class TransactionResponse(BaseModel):
     fraud_probability: float
     anomaly_score: float
@@ -305,7 +316,11 @@ async def score_transaction(
             shap_values=res_data["shap_values"],
             shap_chart_data=ShapChartData(**res_data["shap_chart_data"]),
             status=res_data["status"],
-            model_source=res_data["model_source"]
+            model_source=res_data["model_source"],
+            confidence_band=res_data["confidence_band"],
+            investigation_priority=res_data["investigation_priority"],
+            top_risk_factors=res_data["top_risk_factors"],
+            sar_recommendation=SARRecommendation(**res_data["sar_recommendation"])
         )
     except Exception as e:
         logger.error(f"Failed to analyze transaction for user {payload.user_id}: {e}")

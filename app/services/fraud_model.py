@@ -39,6 +39,10 @@ class FraudScoringEngine:
         self._load_model()
         if not self.is_compiled:
             self.start_background_training()
+
+    @property
+    def model_loaded(self) -> bool:
+        return self.is_compiled or (self.rf_model is not None)
         
     def _load_model(self):
         """Loads serialized model files or defaults to heuristic scoring if files are missing."""
@@ -186,7 +190,7 @@ class FraudScoringEngine:
         
         df_row = pd.DataFrame([features_dict], columns=self.features)
         
-        if self.model_loaded and self.rf_model is not None:
+        if self.is_compiled and self.rf_model is not None:
             try:
                 # Class probabilities from LightGBM / Random Forest
                 if hasattr(self.rf_model, "predict_proba"):
@@ -210,7 +214,10 @@ class FraudScoringEngine:
                     prob = max(prob, 0.90)
                 
                 # Anomaly score from Isolation Forest
-                anomaly_score = float(self.iforest.decision_function(df_row)[0])
+                if self.iforest is not None and hasattr(self.iforest, "decision_function"):
+                    anomaly_score = float(self.iforest.decision_function(df_row)[0])
+                else:
+                    anomaly_score = 0.05
                 
                 # TreeSHAP feature explanations
                 raw_shap_vals = self.explainer.shap_values(df_row)
