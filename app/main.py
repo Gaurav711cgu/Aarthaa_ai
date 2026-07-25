@@ -5,9 +5,13 @@
 # We dynamically inject python-multipart's submodule into sys.modules so they both co-exist.
 import sys
 try:
-    import python_multipart.multipart as pm_multipart
-    sys.modules["multipart.multipart"] = pm_multipart
-except ImportError:
+    import multipart
+    if not hasattr(multipart, "parse_options_header"):
+        from multipart.multipart import parse_options_header
+        multipart.parse_options_header = parse_options_header
+    sys.modules["python_multipart"] = multipart
+    sys.modules["python_multipart.multipart"] = multipart
+except Exception:
     pass
 # ──────────────────────────────────────────────────────────────────────────────
 

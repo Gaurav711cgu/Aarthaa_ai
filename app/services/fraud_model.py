@@ -183,6 +183,8 @@ class FraudScoringEngine:
         
         df_row = pd.DataFrame([features_dict], columns=self.features)
         
+        if self.model_loaded and self.rf_model is not None:
+            try:
                 # Class probabilities from LightGBM / Random Forest
                 lgbm_prob = float(self.rf_model.predict_proba(df_row)[0][1])
                 
