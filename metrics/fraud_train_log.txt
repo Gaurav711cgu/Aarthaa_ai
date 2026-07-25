@@ -1,0 +1,50 @@
+2026-07-12 16:33:42,996 - INFO - Loading train_transaction.csv (590k rows)...
+2026-07-12 16:33:49,698 - INFO - Merging train_identity.csv...
+2026-07-12 16:33:50,117 - INFO - Merged dataset: 590540 rows, 434 columns.
+2026-07-12 16:33:50,118 - INFO - Engineering velocity features...
+/Users/gauravkumarnayak/Desktop/artha-ai/scripts/train_fraud_model.py:67: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df["velocity_1h"]  = v1h
+/Users/gauravkumarnayak/Desktop/artha-ai/scripts/train_fraud_model.py:68: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df["velocity_6h"]  = v6h
+/Users/gauravkumarnayak/Desktop/artha-ai/scripts/train_fraud_model.py:69: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df["velocity_24h"] = v24h
+/Users/gauravkumarnayak/Desktop/artha-ai/scripts/train_fraud_model.py:73: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df["amt_to_card_mean"] = df["TransactionAmt"] / card_mean.replace(0, 1.0)
+/Users/gauravkumarnayak/Desktop/artha-ai/scripts/train_fraud_model.py:76: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df["hour"]   = (df["TransactionDT"] // 3600) % 24
+/Users/gauravkumarnayak/Desktop/artha-ai/scripts/train_fraud_model.py:77: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df["dow"]    = (df["TransactionDT"] // 86400) % 7
+/Users/gauravkumarnayak/Desktop/artha-ai/scripts/train_fraud_model.py:128: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df["day"] = df["TransactionDT"] // 86400
+2026-07-12 16:34:01,729 - INFO - Temporal split: Train=472,006, Val=118,534 (split at day 140)
+2026-07-12 16:34:01,732 - INFO - Fraud rate in train: 3.515% → scale_pos_weight=27.5
+2026-07-12 16:34:01,732 - INFO - Training LightGBM (400 rounds, early-stopping on val AUC)...
+2026-07-12 16:34:19,671 - INFO - =======================================================
+2026-07-12 16:34:19,671 - INFO -   IEEE-CIS Temporal Validation Metrics (Day >182)
+2026-07-12 16:34:19,671 - INFO -   AUC-ROC   : 0.9138
+2026-07-12 16:34:19,671 - INFO -   Precision : 0.3466
+2026-07-12 16:34:19,671 - INFO -   Recall    : 0.6170
+2026-07-12 16:34:19,671 - INFO -   F1-Score  : 0.4439
+2026-07-12 16:34:19,671 - INFO -   Val rows  : 118,534
+2026-07-12 16:34:19,671 - INFO - =======================================================
+2026-07-12 16:34:19,671 - INFO - Metrics saved to /Users/gauravkumarnayak/Desktop/artha-ai/metrics/fraud_metrics.json
+2026-07-12 16:34:19,703 - INFO - Model saved to /Users/gauravkumarnayak/Desktop/artha-ai/app/models/fraud_model.joblib (sha256=8ebb5ebba0c9c107...)
+Training until validation scores don't improve for 50 rounds
+[50]	valid_0's auc: 0.90304
+[100]	valid_0's auc: 0.910673
+[150]	valid_0's auc: 0.912453
+[200]	valid_0's auc: 0.913373
+[250]	valid_0's auc: 0.913524
+Early stopping, best iteration is:
+[221]	valid_0's auc: 0.913767
+
+📊 Final Metrics:
+   auc_roc: 0.9138
+   precision: 0.3466
+   recall: 0.617
+   f1: 0.4439
+   val_rows: 118534
+   num_features: 71
+   model: LightGBM
+   split: temporal (day > 182)
+   dataset: IEEE-CIS Fraud Detection (590k transactions)

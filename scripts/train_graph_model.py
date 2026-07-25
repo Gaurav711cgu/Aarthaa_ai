@@ -32,7 +32,7 @@ def train():
     x_test, adj_test = GraphBuilder.build_features_and_adj(test_txs)
     y_test = torch.tensor(test_df["isFraud"].values, dtype=torch.float32).unsqueeze(1)
     
-    model = FraudGraphSAGE(in_channels=6, hidden_channels=16)
+    model = FraudGraphSAGE(in_channels=6, hidden_channels=64)
     
     # Sample-weighted BCE loss to handle extreme fraud imbalance
     pos_count = y_train.sum().item()

@@ -23,7 +23,7 @@ class SAGEConv(nn.Module):
 
 class FraudGraphSAGE(nn.Module):
     """2-layer inductive GraphSAGE network for transaction fraud scoring."""
-    def __init__(self, in_channels: int = 6, hidden_channels: int = 16):
+    def __init__(self, in_channels: int = 6, hidden_channels: int = 64):
         super().__init__()
         self.conv1 = SAGEConv(in_channels, hidden_channels)
         self.conv2 = SAGEConv(hidden_channels, hidden_channels)
@@ -104,7 +104,7 @@ MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 class GraphFraudScorer:
     """Manages GraphSAGE model states and does collusion-ring inference."""
     def __init__(self):
-        self.model = FraudGraphSAGE(in_channels=6, hidden_channels=16)
+        self.model = FraudGraphSAGE(in_channels=6, hidden_channels=64)
         self.model_loaded = False
         self.load_model()
 
