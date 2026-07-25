@@ -1,5 +1,5 @@
 {
-  "audit_timestamp": "2026-07-26T01:23:12.499625",
+  "audit_timestamp": "2026-07-26T01:48:23.307576",
   "model_version": "lgbm-v2.1-gnn-ensemble",
   "overall_auc_roc": 1.0,
   "fairness_threshold": 0.05,

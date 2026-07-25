@@ -65,19 +65,22 @@ class FraudScoringEngine:
                 logger.info("Model SHA-256 checksum successfully verified.")
                 
                 ensemble = joblib.load(MODEL_PATH)
-                self.rf_model = ensemble["rf"]
-                self.iforest = ensemble["iforest"]
-                self.features = ensemble["features"]
-                self.encoder_mappings = ensemble.get("encoder_mappings", {})
-                self.metrics = ensemble.get("metrics", {})
+                if isinstance(ensemble, dict):
+                    self.rf_model = ensemble.get("rf") or ensemble.get("model") or ensemble.get("lgbm")
+                    self.iforest = ensemble.get("iforest")
+                    self.features = ensemble.get("features", self.features)
+                    self.encoder_mappings = ensemble.get("encoder_mappings", {})
+                    self.metrics = ensemble.get("metrics", {})
+                else:
+                    self.rf_model = ensemble
                 
                 # Build real-time tree SHAP explainer for Random Forest
                 self.explainer = shap.TreeExplainer(self.rf_model)
                 self.is_compiled = True
                 logger.info("Ensemble fraud scoring models and SHAP explainer loaded successfully.")
                 return
-            except (OSError, RuntimeError, ValueError) as e:
-                logger.error(f"Error loading fraud models package: {e}")
+            except Exception as e:
+                logger.error(f"Error loading fraud models package: {e}. Falling back to dynamic heuristic engine.")
                 
         # Default fallback flag
         self.is_compiled = False
@@ -186,7 +189,13 @@ class FraudScoringEngine:
         if self.model_loaded and self.rf_model is not None:
             try:
                 # Class probabilities from LightGBM / Random Forest
-                lgbm_prob = float(self.rf_model.predict_proba(df_row)[0][1])
+                if hasattr(self.rf_model, "predict_proba"):
+                    lgbm_prob = float(self.rf_model.predict_proba(df_row)[0][1])
+                elif hasattr(self.rf_model, "predict"):
+                    raw_pred = self.rf_model.predict(df_row)
+                    lgbm_prob = float(raw_pred[0] if np.ndim(raw_pred) > 0 else raw_pred)
+                else:
+                    lgbm_prob = 0.05
                 
                 # Class probabilities from GraphSAGE GNN
                 from app.services.graph_fraud import graph_scorer

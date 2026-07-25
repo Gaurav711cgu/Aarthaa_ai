@@ -2,9 +2,12 @@ import gradio as gr
 import logging
 import uuid
 import pandas as pd
-import matplotlib.pyplot as plt
-from evidently.legacy.report import Report
-from evidently.legacy.metric_preset import DataDriftPreset
+try:
+    from evidently.legacy.report import Report
+    from evidently.legacy.metric_preset import DataDriftPreset
+except Exception:
+    Report = None
+    DataDriftPreset = None
 
 from app.database import SessionLocal
 from app.models.statement import BankStatement

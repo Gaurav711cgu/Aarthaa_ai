@@ -6,8 +6,18 @@ from typing import Dict, Any
 import numpy as np
 import pandas as pd
 import logging
-from evidently.legacy.report import Report
-from evidently.legacy.metric_preset import DataDriftPreset
+
+logger = logging.getLogger(__name__)
+
+try:
+    from evidently.legacy.report import Report
+    from evidently.legacy.metric_preset import DataDriftPreset
+    EVIDENTLY_AVAILABLE = True
+except Exception as _ev_err:
+    logger.warning(f"Evidently AI not compatible with Python runtime ({_ev_err}). Operating with built-in Population Stability Index (PSI) drift engine.")
+    Report = None
+    DataDriftPreset = None
+    EVIDENTLY_AVAILABLE = False
 from app.services.monitoring import DATA_DRIFT_SCORE
 from app.kafka_client import get_kafka_producer
 
@@ -95,7 +105,7 @@ class DataDriftDetector:
         for feat in self.features:
             drift_results[f"{feat}_drift"] = 0.0
             
-        if len(self.feature_windows["TransactionAmt"]) >= 10:
+        if EVIDENTLY_AVAILABLE and Report is not None and len(self.feature_windows["TransactionAmt"]) >= 10:
             try:
                 current_df = pd.DataFrame({
                     feat: list(self.feature_windows[feat]) for feat in self.features
@@ -159,6 +169,8 @@ class DataDriftDetector:
 
     def get_drift_report_html_base64(self) -> str:
         """Generates the latest Evidently HTML report and encodes it in base64."""
+        if not EVIDENTLY_AVAILABLE or Report is None:
+            return ""
         if self.last_report is None:
             try:
                 current_df = pd.DataFrame({
