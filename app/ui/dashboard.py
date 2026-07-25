@@ -3,8 +3,8 @@ import logging
 import uuid
 import pandas as pd
 try:
-    from evidently.legacy.report import Report
     from evidently.legacy.metric_preset import DataDriftPreset
+from evidently.legacy.report import Report
 except Exception:
     Report = None
     DataDriftPreset = None
