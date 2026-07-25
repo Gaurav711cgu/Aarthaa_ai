@@ -1,0 +1,163 @@
+{
+  "sweep": [
+    {
+      "threshold": 0.2,
+      "precision": 0.1157,
+      "recall": 1.0,
+      "f1": 0.2073,
+      "false_positive_rate": 0.2593,
+      "alerts_generated": 2836,
+      "true_positives": 328,
+      "false_positives": 2508,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.25,
+      "precision": 0.1444,
+      "recall": 1.0,
+      "f1": 0.2524,
+      "false_positive_rate": 0.2009,
+      "alerts_generated": 2271,
+      "true_positives": 328,
+      "false_positives": 1943,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.3,
+      "precision": 0.1726,
+      "recall": 1.0,
+      "f1": 0.2944,
+      "false_positive_rate": 0.1625,
+      "alerts_generated": 1900,
+      "true_positives": 328,
+      "false_positives": 1572,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.35,
+      "precision": 0.206,
+      "recall": 1.0,
+      "f1": 0.3417,
+      "false_positive_rate": 0.1307,
+      "alerts_generated": 1592,
+      "true_positives": 328,
+      "false_positives": 1264,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.4,
+      "precision": 0.2464,
+      "recall": 1.0,
+      "f1": 0.3954,
+      "false_positive_rate": 0.1037,
+      "alerts_generated": 1331,
+      "true_positives": 328,
+      "false_positives": 1003,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.45,
+      "precision": 0.2862,
+      "recall": 1.0,
+      "f1": 0.445,
+      "false_positive_rate": 0.0846,
+      "alerts_generated": 1146,
+      "true_positives": 328,
+      "false_positives": 818,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.5,
+      "precision": 0.3293,
+      "recall": 1.0,
+      "f1": 0.4955,
+      "false_positive_rate": 0.0691,
+      "alerts_generated": 996,
+      "true_positives": 328,
+      "false_positives": 668,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.55,
+      "precision": 0.3761,
+      "recall": 1.0,
+      "f1": 0.5467,
+      "false_positive_rate": 0.0562,
+      "alerts_generated": 872,
+      "true_positives": 328,
+      "false_positives": 544,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.6,
+      "precision": 0.4254,
+      "recall": 1.0,
+      "f1": 0.5969,
+      "false_positive_rate": 0.0458,
+      "alerts_generated": 771,
+      "true_positives": 328,
+      "false_positives": 443,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.65,
+      "precision": 0.4761,
+      "recall": 1.0,
+      "f1": 0.645,
+      "false_positive_rate": 0.0373,
+      "alerts_generated": 689,
+      "true_positives": 328,
+      "false_positives": 361,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.7,
+      "precision": 0.5359,
+      "recall": 1.0,
+      "f1": 0.6979,
+      "false_positive_rate": 0.0294,
+      "alerts_generated": 612,
+      "true_positives": 328,
+      "false_positives": 284,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.75,
+      "precision": 0.5974,
+      "recall": 1.0,
+      "f1": 0.748,
+      "false_positive_rate": 0.0228,
+      "alerts_generated": 549,
+      "true_positives": 328,
+      "false_positives": 221,
+      "missed_fraud": 0
+    },
+    {
+      "threshold": 0.8,
+      "precision": 0.66,
+      "recall": 1.0,
+      "f1": 0.7952,
+      "false_positive_rate": 0.0175,
+      "alerts_generated": 497,
+      "true_positives": 328,
+      "false_positives": 169,
+      "missed_fraud": 0
+    }
+  ],
+  "selected_operating_point": {
+    "threshold": 0.8,
+    "precision": 0.66,
+    "recall": 1.0,
+    "f1": 0.7952,
+    "false_positive_rate": 0.0175,
+    "alerts_generated": 497,
+    "true_positives": 328,
+    "false_positives": 169,
+    "missed_fraud": 0
+  },
+  "business_context": {
+    "cost_ratio_missed_fraud_vs_fp": 8,
+    "analyst_review_time_minutes": 15,
+    "regulatory_context": "RBI Circular DPSS.CO.PD No.1102/02.14.003/2019-20 \u2014 banks required to flag transactions above \u20b950,000 for review"
+  }
+}

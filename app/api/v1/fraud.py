@@ -52,9 +52,50 @@ class TransactionRequest(BaseModel):
             raise ValueError("Hour must be between 0 and 23")
         return v
 
-class ShapChartData(BaseModel):
-    features: List[str]
-    values: List[float]
+class SARRecommendation(BaseModel):
+    recommended: bool
+    reason: Optional[str] = None
+    regulatory_basis: Optional[str] = None
+    sla_hours: Optional[int] = None
+
+class SARRules:
+    """
+    Rule-based SAR trigger layer on top of ML score.
+    Mirrors RBI Circular DPSS.CO.PD No.1102 and FinCEN SAR thresholds.
+    """
+    AMOUNT_THRESHOLD_INR = 50_000       # RBI threshold for enhanced monitoring
+    HIGH_CONFIDENCE_THRESHOLD = 0.85    # ML score that triggers SAR regardless of amount
+    
+    @staticmethod
+    def evaluate(fraud_prob: float, transaction_amount: float) -> SARRecommendation:
+        sar_triggers = []
+        if fraud_prob >= SARRules.HIGH_CONFIDENCE_THRESHOLD:
+            sar_triggers.append(
+                f"ML fraud score {fraud_prob:.2f} exceeds high-confidence threshold {SARRules.HIGH_CONFIDENCE_THRESHOLD}"
+            )
+        if transaction_amount >= SARRules.AMOUNT_THRESHOLD_INR and fraud_prob >= 0.50:
+            sar_triggers.append(
+                f"Transaction amount ₹{transaction_amount:,.0f} exceeds RBI monitoring threshold with elevated ML score"
+            )
+        if sar_triggers:
+            return SARRecommendation(
+                recommended=True,
+                reason="; ".join(sar_triggers),
+                regulatory_basis="RBI Circular DPSS.CO.PD No.1102/02.14.003/2019-20",
+                sla_hours=24
+            )
+        return SARRecommendation(recommended=False, reason=None, regulatory_basis=None, sla_hours=None)
+
+def get_investigation_priority(fraud_prob: float, amount: float) -> tuple[str, str]:
+    """Returns (priority, confidence_band)."""
+    if fraud_prob >= 0.85:
+        return "P1", "HIGH"       # Immediate review, block transaction
+    elif fraud_prob >= 0.60:
+        return "P2", "MEDIUM"     # Review within 4 hours
+    elif fraud_prob >= 0.45:
+        return "P3", "LOW"        # Review within 24 hours
+    else:
+        return "CLEAR", "LOW"
 
 class TransactionResponse(BaseModel):
     fraud_probability: float
@@ -65,6 +106,10 @@ class TransactionResponse(BaseModel):
     shap_chart_data: ShapChartData
     status: str
     model_source: str
+    confidence_band: str = "LOW"
+    investigation_priority: str = "CLEAR"
+    top_risk_factors: List[str] = []
+    sar_recommendation: SARRecommendation
 
 def _idempotency_key(tx_data: dict) -> str:
     """SHA-256 of canonical transaction fields."""
@@ -223,6 +268,17 @@ async def score_transaction(
         FRAUD_SCORING_LATENCY.observe(latency)
         TRANSACTIONS_PROCESSED.labels(channel=tx_dict["channel"], risk_tier=tier).inc()
         
+        # 7. Evaluate SAR recommendation and Investigation Priority
+        sar_rec = SARRules.evaluate(hybrid_score, float(payload.amount))
+        priority, conf_band = get_investigation_priority(hybrid_score, float(payload.amount))
+        
+        # Format top 3 risk factors from SHAP values
+        sorted_shap = sorted(result["shap_values"].items(), key=lambda x: abs(x[1]), reverse=True)[:3]
+        top_risk_factors = [
+            f"{feat}: {'increases' if val > 0 else 'decreases'} fraud probability by {abs(val):.3f}"
+            for feat, val in sorted_shap
+        ]
+        
         res_data = {
             "fraud_probability": round(hybrid_score, 4),
             "anomaly_score": result["anomaly_score"],
@@ -231,7 +287,11 @@ async def score_transaction(
             "shap_values": result["shap_values"],
             "shap_chart_data": result["shap_chart_data"],
             "status": action_status,
-            "model_source": "hybrid_rf_gnn" if gnn_result["graph_available"] else "RandomForest+IsolationForest_Ensemble"
+            "model_source": "hybrid_rf_gnn" if gnn_result["graph_available"] else "RandomForest+IsolationForest_Ensemble",
+            "confidence_band": conf_band,
+            "investigation_priority": priority,
+            "top_risk_factors": top_risk_factors,
+            "sar_recommendation": sar_rec.model_dump()
         }
         
         # Cache response

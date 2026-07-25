@@ -27,6 +27,7 @@ app/models/*.onnx
 app/models/*.joblib
 app/models/*.sha256
 data/chroma_db/
+data/raw/
 data/*.csv
 data/*.zip
 .coverage*
