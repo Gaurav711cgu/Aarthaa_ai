@@ -159,8 +159,8 @@ class RegGuardComplianceAgent:
         # 7. Cache final result in Redis
         try:
             redis_client.set(cache_key, json.dumps(response_payload), ex=3600) # 1 hour TTL
-        except Exception as r_err:
-            logger.error(f"Redis cache serialization failed: {r_err}")
+        except (ConnectionError, ValueError, TypeError) as r_err:
+    logger.error(f"Redis cache serialization failed: {r_err}")
 
         return response_payload
 
