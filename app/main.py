@@ -6,11 +6,17 @@
 import sys
 try:
     import multipart
-    if not hasattr(multipart, "parse_options_header"):
-        from multipart.multipart import parse_options_header
-        multipart.parse_options_header = parse_options_header  # type: ignore[attr-defined]
+    if hasattr(multipart, "parse_options_header"):
+        setattr(multipart, "multipart", multipart)
+        sys.modules["multipart.multipart"] = multipart
+    else:
+        try:
+            from multipart import multipart as sub_multipart
+            sys.modules["multipart.multipart"] = sub_multipart
+        except ImportError:
+            setattr(multipart, "multipart", multipart)
+            sys.modules["multipart.multipart"] = multipart
     sys.modules["python_multipart"] = multipart
-    sys.modules["python_multipart.multipart"] = multipart
 except Exception:  # noqa: BLE001
     pass
 # ──────────────────────────────────────────────────────────────────────────────
