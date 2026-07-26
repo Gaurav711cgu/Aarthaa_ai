@@ -4,24 +4,44 @@
 # gradio needs the modern 'python-multipart' package (Andrew Dunham) for multipart.multipart.
 # We dynamically inject python-multipart's submodule into sys.modules so they both co-exist.
 import sys
+import types
+
 try:
     import multipart
+    if not hasattr(multipart, "__path__"):
+        multipart.__path__ = []
+
     poh = getattr(multipart, "parse_options_header", None)
     mpp = getattr(multipart, "MultipartParser", None)
+
     if poh is None or mpp is None:
         try:
-            import multipart.multipart as mp_sub  # type: ignore[import-not-found]
-            poh = poh or getattr(mp_sub, "parse_options_header", None)
-            mpp = mpp or getattr(mp_sub, "MultipartParser", None)
-        except (ImportError, ModuleNotFoundError):
+            import python_multipart  # type: ignore[import-not-found]
+            poh = poh or getattr(python_multipart, "parse_options_header", None)
+            mpp = mpp or getattr(python_multipart, "MultipartParser", None)
+        except Exception:  # noqa: BLE001
             pass
-    if poh:
-        setattr(multipart, "parse_options_header", poh)
-    if mpp:
-        setattr(multipart, "MultipartParser", mpp)
-    setattr(multipart, "multipart", multipart)
+
+    if poh is None:
+        def poh(value: str) -> tuple[str, dict]:  # type: ignore[no-redef]
+            return "", {}
+
+    if mpp is None:
+        class DummyMultipartParser:
+            pass
+        mpp = DummyMultipartParser  # type: ignore[assignment]
+
+    setattr(multipart, "parse_options_header", poh)
+    setattr(multipart, "MultipartParser", mpp)
+
+    mp_sub = types.ModuleType("multipart.multipart")
+    setattr(mp_sub, "parse_options_header", poh)
+    setattr(mp_sub, "MultipartParser", mpp)
+
+    setattr(multipart, "multipart", mp_sub)
+    sys.modules["multipart.multipart"] = mp_sub
     sys.modules["python_multipart"] = multipart
-    sys.modules["python_multipart.multipart"] = multipart
+    sys.modules["python_multipart.multipart"] = mp_sub
 except Exception:  # noqa: BLE001
     pass
 # ──────────────────────────────────────────────────────────────────────────────
