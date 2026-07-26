@@ -6,17 +6,22 @@
 import sys
 try:
     import multipart
-    if hasattr(multipart, "parse_options_header"):
-        setattr(multipart, "multipart", multipart)
-        sys.modules["multipart.multipart"] = multipart
-    else:
+    poh = getattr(multipart, "parse_options_header", None)
+    mpp = getattr(multipart, "MultipartParser", None)
+    if poh is None or mpp is None:
         try:
-            from multipart import multipart as sub_multipart
-            sys.modules["multipart.multipart"] = sub_multipart
-        except ImportError:
-            setattr(multipart, "multipart", multipart)
-            sys.modules["multipart.multipart"] = multipart
+            import multipart.multipart as mp_sub  # type: ignore[import-not-found]
+            poh = poh or getattr(mp_sub, "parse_options_header", None)
+            mpp = mpp or getattr(mp_sub, "MultipartParser", None)
+        except (ImportError, ModuleNotFoundError):
+            pass
+    if poh:
+        setattr(multipart, "parse_options_header", poh)
+    if mpp:
+        setattr(multipart, "MultipartParser", mpp)
+    setattr(multipart, "multipart", multipart)
     sys.modules["python_multipart"] = multipart
+    sys.modules["python_multipart.multipart"] = multipart
 except Exception:  # noqa: BLE001
     pass
 # ──────────────────────────────────────────────────────────────────────────────

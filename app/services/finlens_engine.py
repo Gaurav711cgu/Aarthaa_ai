@@ -129,9 +129,9 @@ class FinLensQueryEngine:
                 answer = result.get("output", "")
                 
                 numerical_value = 0.0
-                monetary_matches = re.findall(r"(?:₹|INR|Rs\.?)\ s*([\ d,]+\.?\ d*)", answer)
+                monetary_matches = re.findall(r"(?:₹|INR|Rs\.?)\s*([\d,]+\.?\d*)", answer)
                 if not monetary_matches:
-                    monetary_matches = re.findall(r"(\ d[\ d,]*\.?\ d*)", answer)
+                    monetary_matches = re.findall(r"(\d[\d,]*\.?\d*)", answer)
                 if monetary_matches:
                     try:
                         num_str = monetary_matches[0].replace(",", "")
@@ -148,7 +148,7 @@ class FinLensQueryEngine:
                     "compiled_sql": compiled_sql,
                     "audit_status": "VERIFIED_VIA_SQL_DATABASE"
                 }
-            except (RuntimeError, ValueError, ConnectionError) as agent_err:
+            except (RuntimeError, ValueError, ConnectionError, Exception) as agent_err:  # noqa: BLE001
                 logger.error(f"FinLens SQL Agent execution failed: {agent_err}. Falling back to offline router.")
 
         # 2. Offline Fallback (High-fidelity 15+ pattern matching keyword router)
@@ -230,7 +230,7 @@ class FinLensQueryEngine:
                 "compiled_sql": sql_query.strip().replace("\n", " ").replace("  ", " "),
                 "audit_status": "VERIFIED_VIA_SQL_DATABASE"
             }
-        except (RuntimeError, ValueError, OSError) as e:
+        except (RuntimeError, ValueError, OSError, Exception) as e:  # noqa: BLE001
             logger.error(f"Offline SQL routing execution failed: {e}")
             return {
                 "answer": "Failed to compile SQL query to extract statement data.",

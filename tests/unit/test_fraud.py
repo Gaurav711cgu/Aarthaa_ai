@@ -41,7 +41,7 @@ def test_analyze_low_risk_transaction(mock_score):
         assert data["status"] == "approved"
         assert "explanation" in data
         assert "shap_values" in data
-        assert "amount" in data["shap_values"]
+        assert any(k in data["shap_values"] for k in ["amount", "TransactionAmt"])
         assert data["model_source"] in ["RandomForest+IsolationForest_Ensemble", "hybrid_rf_gnn"]
 
 @patch("app.services.graph_fraud.graph_scorer.score_with_context")

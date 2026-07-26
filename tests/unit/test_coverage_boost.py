@@ -302,12 +302,16 @@ SAMPLE_CHUNKS = [
 
 class TestLocalVectorStore:
     def setup_method(self):
+        import uuid
         from app.services.vector_store import LocalVectorStore
         self.open_patcher = patch("app.services.vector_store.open", create=True)
         self.mock_open = self.open_patcher.start()
         with patch("app.services.vector_store.is_postgres_active", False), \
              patch("app.services.vector_store.os.path.exists", return_value=False):
             self.vs = LocalVectorStore()
+            self.vs.chroma_collection = self.vs.chroma_client.get_or_create_collection(
+                name=f"test_collection_{uuid.uuid4().hex}"
+            )
 
     def teardown_method(self):
         self.open_patcher.stop()
@@ -669,7 +673,7 @@ class TestVectorStoreErrorPaths:
             def __enter__(self):
                 content = ""
                 for k, v in mock_files.items():
-                    if k in self.filename:
+                    if k in str(self.filename):
                         content = v
                 import io
                 return io.StringIO(content)
