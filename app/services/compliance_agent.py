@@ -41,7 +41,7 @@ class RegGuardComplianceAgent:
             try:
                 self.groq_client = Groq(api_key=settings.GROQ_API_KEY)
                 logger.info("Groq client successfully initialized for RegGuard.")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Failed to initialize Groq client for RegGuard: {e}")
         else:
             logger.warning("GROQ_API_KEY not found in environment settings. RegGuard operating in offline template mode.")
@@ -70,7 +70,7 @@ class RegGuardComplianceAgent:
             if cached_res:
                 logger.info(f"RegGuard cache hit for query: '{query[:40]}...'")
                 return json.loads(cached_res)
-        except Exception as r_err:
+        except (ConnectionError, ValueError, TypeError, AttributeError) as r_err:
             logger.error(f"Redis cache lookups failed: {r_err}")
 
         # 2. Retrieve top-4 relevant chunks from local JSON vector store (upgraded from top-2 for deeper context)
@@ -119,7 +119,7 @@ class RegGuardComplianceAgent:
                 )
                 answer = completion.choices[0].message.content.strip()
                 model_used = "groq/llama-3.1-70b-versatile"
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Groq API call failed: {e}. Falling back to offline citation template.")
 
         # 4. Offline Fallback (used when Groq is offline or key is missing)
@@ -141,7 +141,7 @@ class RegGuardComplianceAgent:
                     "chunk_text_preview": c["text"][:200]
                 })
             citations = sorted(citations, key=lambda x: x["relevance_score"], reverse=True)
-        except Exception as sim_err:
+        except (KeyError, ValueError, TypeError, AttributeError) as sim_err:
             logger.error(f"Citation assembly failed: {sim_err}")
             citations = []
 
@@ -158,9 +158,9 @@ class RegGuardComplianceAgent:
 
         # 7. Cache final result in Redis
         try:
-            redis_client.set(cache_key, json.dumps(response_payload), ex=3600) # 1 hour TTL
-        except (ConnectionError, ValueError, TypeError) as r_err:
-    logger.error(f"Redis cache serialization failed: {r_err}")
+            redis_client.set(cache_key, json.dumps(response_payload), ex=3600)  # 1 hour TTL
+        except (ConnectionError, ValueError, TypeError, AttributeError) as r_err:
+            logger.error(f"Redis cache serialization failed: {r_err}")
 
         return response_payload
 

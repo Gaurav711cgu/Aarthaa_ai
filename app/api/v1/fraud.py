@@ -179,7 +179,7 @@ async def score_transaction(
                 text('SELECT card1, amount, timestamp, addr1, "P_emaildomain", "R_emaildomain", "DeviceType", velocity_1h, velocity_6h, velocity_24h FROM transactions WHERE card1 = :card1 ORDER BY timestamp DESC LIMIT 50'),
                 {"card1": card1}
             ).fetchall()
-        except Exception:
+        except Exception:  # noqa: BLE001
             recent_txs_raw = []
         
         recent_txs = []
@@ -258,7 +258,7 @@ async def score_transaction(
             )
             # Flush asynchronously with short local poll timeout to prevent gateway blockages
             producer.flush(timeout=0.05)
-        except Exception as k_err:
+        except Exception as k_err:  # noqa: BLE001
             logger.error(f"Kafka event streaming ingestion failed: {k_err}")
             
         # 6. Save current transaction to DB
@@ -325,7 +325,7 @@ async def score_transaction(
             top_risk_factors=res_data["top_risk_factors"],
             sar_recommendation=SARRecommendation(**res_data["sar_recommendation"])
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Failed to analyze transaction for user {payload.user_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -401,7 +401,7 @@ async def score_batch_transactions(
                 value=json.dumps(batch_summary)
             )
             producer.flush(timeout=0.05)
-        except Exception as k_err:
+        except Exception as k_err:  # noqa: BLE001
             logger.error(f"Kafka batch event streaming summary failed: {k_err}")
             
         # 4. Record latency for the overall batch run
@@ -409,7 +409,7 @@ async def score_batch_transactions(
         FRAUD_SCORING_LATENCY.observe(latency)
         
         return responses
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Failed to analyze batch of transactions: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

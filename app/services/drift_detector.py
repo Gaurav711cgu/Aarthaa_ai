@@ -13,7 +13,7 @@ try:
     from evidently.legacy.report import Report
     from evidently.legacy.metric_preset import DataDriftPreset
     EVIDENTLY_AVAILABLE = True
-except Exception as _ev_err:
+except Exception as _ev_err:  # noqa: BLE001
     logger.warning(f"Evidently AI not compatible with Python runtime ({_ev_err}). Operating with built-in Population Stability Index (PSI) drift engine.")
     Report = None
     DataDriftPreset = None
@@ -53,7 +53,7 @@ class DataDriftDetector:
                     self._generate_fallback_baseline()
                 else:
                     logger.info(f"Successfully loaded baseline transactions from {BASELINE_PATH} ({len(self.baseline_df)} rows).")
-            except Exception as e:
+            except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError, ValueError, KeyError) as e:
                 logger.error(f"Error loading baseline CSV dataset: {e}. Generating synthetic baseline.")
                 self._generate_fallback_baseline()
         else:
@@ -160,9 +160,9 @@ class DataDriftDetector:
                                 value=json.dumps(drift_event)
                             )
                             producer.flush(timeout=0.05)
-                        except Exception as k_err:
+                        except (ConnectionError, RuntimeError, ValueError) as k_err:
                             logger.error(f"Failed to publish drift event to Kafka: {k_err}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error computing Evidently data drift: {e}")
         
         return drift_results
@@ -183,7 +183,7 @@ class DataDriftDetector:
                     current_data=current_df
                 )
                 self.last_report = report
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error compiling fallback HTML report: {e}")
                 return ""
                 
@@ -193,7 +193,7 @@ class DataDriftDetector:
             html_content = self.last_report.get_html()
             import base64
             return base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Error encoding HTML report in base64: {e}")
             return ""
 

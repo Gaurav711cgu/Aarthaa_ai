@@ -83,7 +83,7 @@ class FraudScoringEngine:
                 self.is_compiled = True
                 logger.info("Ensemble fraud scoring models and SHAP explainer loaded successfully.")
                 return
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error loading fraud models package: {e}. Falling back to dynamic heuristic engine.")
                 
         # Default fallback flag

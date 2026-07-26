@@ -118,7 +118,7 @@ class BankStatementParser:
                         "amount": amount,
                         "balance": balance
                     })
-            except Exception as pandas_err:
+            except (pd.errors.EmptyDataError, pd.errors.ParserError, ValueError, KeyError, TypeError, AttributeError) as pandas_err:
                 logger.error(f"Pandas CSV parsing failed: {pandas_err}. Falling back to regex parser.")
                 is_csv = False
 

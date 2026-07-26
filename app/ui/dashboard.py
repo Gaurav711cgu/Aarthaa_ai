@@ -4,8 +4,8 @@ import uuid
 import pandas as pd
 try:
     from evidently.legacy.metric_preset import DataDriftPreset
-from evidently.legacy.report import Report
-except Exception:
+    from evidently.legacy.report import Report
+except Exception:  # noqa: BLE001
     Report = None
     DataDriftPreset = None
 

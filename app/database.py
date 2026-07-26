@@ -36,7 +36,7 @@ try:
         conn.execute(text("SELECT 1"))
     is_postgres_active = True
     logger.info("PostgreSQL connection established successfully.")
-except (OperationalError, Exception) as e:
+except (OperationalError, Exception) as e:  # noqa: BLE001
     # Sanitize connection error string to prevent credentials leakage in logs
     safe_error = str(e).split("\n")[0][:200]
     if settings.POSTGRES_PASSWORD and settings.POSTGRES_PASSWORD in safe_error:

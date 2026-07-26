@@ -56,7 +56,7 @@ else:
         temp_prod.list_topics(timeout=2.0)
         is_kafka_active = True
         logger.info("Kafka connection established successfully.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Kafka broker connection failed: {e}. Mock fallback is disabled because ARTHA_KAFKA_MOCK is not true.")
         # We set active to True so it tries to use the real broker client and raises errors instead of silencing them
         is_kafka_active = True
@@ -87,5 +87,5 @@ def test_kafka_connection() -> bool:
         p = Producer(conf)
         metadata = p.list_topics(timeout=1.0)
         return metadata is not None
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False

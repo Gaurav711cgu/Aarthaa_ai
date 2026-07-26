@@ -64,7 +64,7 @@ async def upload_document(
             transaction_count=result["transaction_count"],
             status="ingested_and_committed"
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Document upload and parsing pipeline failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -96,7 +96,7 @@ async def query_document(
         return DocumentQueryResponse(**result)
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Failed to query statement ID {payload.statement_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -189,7 +189,7 @@ def get_statement_summary(
         }
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Failed to generate statement summary for ID {id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

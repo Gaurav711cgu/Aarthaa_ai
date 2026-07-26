@@ -54,7 +54,7 @@ async def check_compliance(
         # Invoke global compliance agent sweeps
         result = compliance_agent.check_transaction_compliance(tx_dict)
         return ComplianceCheckResponse(**result)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Failed to check compliance for user {payload.user_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -70,7 +70,7 @@ async def query_regulations(
     try:
         result = compliance_agent.query_regulations(payload.query, username=current_user["username"])
         return RegulationQueryResponse(**result)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Failed to query compliance regulations for query '{payload.query}': {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

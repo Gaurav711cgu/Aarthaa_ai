@@ -94,7 +94,7 @@ try:
     client.ping()
     is_redis_active = True
     logger.info("Redis connection established successfully.")
-except Exception as e:
+except (redis.RedisError, ConnectionError, OSError) as e:
     logger.warning(f"Redis connection failed: {e}. Activating transparent MockRedis fallback.")
     is_redis_active = False
 
@@ -114,6 +114,6 @@ def test_redis_connection() -> bool:
     try:
         client = get_redis_client()
         return bool(client.ping())
-    except Exception as e:
+    except (redis.RedisError, ConnectionError, OSError) as e:
         logger.error(f"Redis connection health check failed: {e}")
         return False

@@ -11,7 +11,7 @@ try:
         multipart.parse_options_header = parse_options_header
     sys.modules["python_multipart"] = multipart
     sys.modules["python_multipart.multipart"] = multipart
-except Exception:
+except Exception:  # noqa: BLE001
     pass
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -104,7 +104,7 @@ def kafka_status(current_user: Dict[str, Any] = Depends(get_current_user)):
                 t for t in metadata.topics.keys()
                 if not t.startswith("__")
             ]
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"Kafka topic listing failed: {e}")
     return {
         "kafka_status": "healthy" if is_alive else "unreachable",
@@ -124,7 +124,7 @@ def health_check(request: Request, db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
         pg_alive = True
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
     redis_alive = test_redis_connection()
@@ -149,14 +149,14 @@ async def _ping_kafka() -> str:
     try:
         alive = test_kafka_connection()
         return "healthy" if alive else ("mock_active" if not is_kafka_active else "unreachable")
-    except Exception:
+    except Exception:  # noqa: BLE001
         return "unreachable"
 
 async def _ping_redis() -> str:
     try:
         alive = test_redis_connection()
         return "healthy" if alive else ("mock_active" if not is_redis_active else "unreachable")
-    except Exception:
+    except Exception:  # noqa: BLE001
         return "unreachable"
 
 async def _count_regulations() -> int:
@@ -167,7 +167,7 @@ async def _count_regulations() -> int:
             with engine.connect() as conn:
                 count = conn.execute(text("SELECT COUNT(*) FROM regulations")).scalar()
                 return int(count)
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
     return len(vector_store.embeddings_db)
 
