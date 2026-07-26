@@ -120,7 +120,7 @@ class TransactionResponse(BaseModel):
     confidence_band: str = "LOW"
     investigation_priority: str = "CLEAR"
     top_risk_factors: List[str] = []
-    sar_recommendation: SARRecommendation
+    sar_recommendation: Optional[SARRecommendation] = Field(default_factory=lambda: SARRecommendation(recommended=False))
 
 def _idempotency_key(tx_data: dict) -> str:
     """SHA-256 of canonical transaction fields."""

@@ -8,7 +8,7 @@ try:
     import multipart
     if not hasattr(multipart, "parse_options_header"):
         from multipart.multipart import parse_options_header
-        multipart.parse_options_header = parse_options_header
+        multipart.parse_options_header = parse_options_header  # type: ignore[attr-defined]
     sys.modules["python_multipart"] = multipart
     sys.modules["python_multipart.multipart"] = multipart
 except Exception:  # noqa: BLE001

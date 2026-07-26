@@ -1,6 +1,7 @@
 import gradio as gr
 import logging
 import uuid
+import matplotlib.pyplot as plt
 import pandas as pd
 try:
     from evidently.legacy.metric_preset import DataDriftPreset

@@ -204,7 +204,8 @@ class FraudScoringEngine:
                 # Class probabilities from GraphSAGE GNN
                 from app.services.graph_fraud import graph_scorer
                 gnn_res = graph_scorer.score_with_context(tx_data, [])
-                gnn_prob = float(gnn_res.get("gnn_score")) if gnn_res.get("gnn_score") is not None else lgbm_prob
+                gnn_score_val = gnn_res.get("gnn_score")
+                gnn_prob = float(gnn_score_val) if gnn_score_val is not None else lgbm_prob
                 
                 # Weighted Ensemble: 70% LightGBM + 30% GraphSAGE GNN (+0.02 AUC over LightGBM-only)
                 prob = float(0.70 * lgbm_prob + 0.30 * gnn_prob)
