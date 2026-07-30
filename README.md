@@ -1,7 +1,7 @@
 ---
 title: Artha AI
 emoji: 🛡️
-colorFrom: amber
+colorFrom: yellow
 colorTo: blue
 sdk: docker
 app_port: 7860
