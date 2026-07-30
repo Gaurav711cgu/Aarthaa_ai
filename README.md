@@ -1,3 +1,13 @@
+---
+title: Artha AI
+emoji: 🛡️
+colorFrom: amber
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Artha AI: FinTech Audit & Observability Platform (JP Morgan Edition)
 
 [![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
