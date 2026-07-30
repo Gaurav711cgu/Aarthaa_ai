@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Activity, Shield, Layers, Database, Cpu, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { Activity, Shield, Layers, Database, Cpu, RefreshCw, CheckCircle, AlertTriangle, ArrowLeft } from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
@@ -88,6 +89,9 @@ export default function PlatformPage() {
         <section style={{ position: "relative", padding: "80px 0 60px" }}>
           <div className="bg-grid" style={{ position: "absolute", inset: 0, opacity: 0.3 }} />
           <div className="section-container" style={{ position: "relative" }}>
+            <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 20, color: "#F59E0B", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+              <ArrowLeft size={15} /> Back to Platform Overview
+            </Link>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 24 }}>
               <span className="badge-amber">Operations Room</span>
               <span className="badge-violet">Decoupled Systems</span>

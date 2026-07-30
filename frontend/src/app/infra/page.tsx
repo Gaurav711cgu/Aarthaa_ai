@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Server, Activity, Database, CheckCircle, RefreshCw, Cpu, Layers } from "lucide-react";
+import Link from "next/link";
+import { Server, Activity, Database, CheckCircle, RefreshCw, Cpu, Layers, ArrowLeft } from "lucide-react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
@@ -45,6 +46,9 @@ export default function InfraPage() {
         <section style={{ position: "relative", padding: "80px 0 60px" }}>
           <div className="bg-grid" style={{ position: "absolute", inset: 0, opacity: 0.3 }} />
           <div className="section-container" style={{ position: "relative" }}>
+            <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 20, color: "#F59E0B", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+              <ArrowLeft size={15} /> Back to Platform Overview
+            </Link>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 24 }}>
               <span className="badge-amber">HA Infrastructure</span>
               <span className="badge-violet">Kubernetes Orchestrated</span>

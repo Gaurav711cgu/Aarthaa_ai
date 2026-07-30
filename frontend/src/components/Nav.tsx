@@ -3,16 +3,17 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Shield } from "lucide-react";
+import { Menu, X, Shield, ArrowLeft } from "lucide-react";
 
 const NAV_LINKS = [
-  { href: "/fraud",      label: "FraudSense" },
-  { href: "/compliance", label: "RegGuard" },
-  { href: "/finlens",   label: "FinLens" },
-  { href: "/mlops",     label: "MLOps" },
-  { href: "/security",  label: "Security" },
-  { href: "/infra",     label: "Infrastructure" },
-  { href: "/#blogs",    label: "Research & Blogs" },
+  { href: "/#features",        label: "Core Pillars" },
+  { href: "/fraud",            label: "FraudSense" },
+  { href: "/compliance",       label: "RegGuard" },
+  { href: "/finlens",         label: "FinLens" },
+  { href: "/mlops",           label: "MLOps" },
+  { href: "/#research-papers", label: "Research Papers" },
+  { href: "/#roadmap",         label: "Future Roadmap" },
+  { href: "/platform",        label: "Live Platform" },
 ];
 
 export default function Nav() {
@@ -26,6 +27,8 @@ export default function Nav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const isSubPage = pathname && pathname !== "/";
+
   return (
     <nav
       style={{
@@ -38,30 +41,61 @@ export default function Nav() {
     >
       <div className="section-container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
 
-        {/* Logo */}
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-            <rect x="1" y="1" width="24" height="24" rx="5" stroke="#F59E0B" strokeWidth="1.5" />
-            <line x1="13" y1="5" x2="13" y2="21" stroke="#F59E0B" strokeWidth="1.5" />
-            <line x1="7"  y1="9"  x2="13" y2="9"  stroke="#8B5CF6" strokeWidth="1.5" />
-            <line x1="7"  y1="13" x2="13" y2="13" stroke="#10B981" strokeWidth="1.5" />
-            <line x1="7"  y1="17" x2="13" y2="17" stroke="#3B82F6" strokeWidth="1.5" />
-            <circle cx="7"  cy="9"  r="1.8" fill="#8B5CF6" />
-            <circle cx="7"  cy="13" r="1.8" fill="#10B981" />
-            <circle cx="7"  cy="17" r="1.8" fill="#3B82F6" />
-          </svg>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 17, color: "#E8F0F8" }}>
-            Artha AI
-          </span>
-          {/* live badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 9px", borderRadius: 99, background: "rgba(16,185,129,0.09)", border: "1px solid rgba(16,185,129,0.25)", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, letterSpacing: "0.1em", color: "#10B981" }}>
-            <span style={{ position: "relative", display: "inline-flex", width: 6, height: 6 }}>
-              <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#10B981", animation: "ping 1.4s ease-in-out infinite", opacity: 0.6 }} />
-              <span style={{ position: "relative", display: "block", width: 6, height: 6, borderRadius: "50%", background: "#10B981" }} />
+        {/* Logo & Optional Back Button */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {isSubPage && (
+            <Link
+              href="/"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
+                borderRadius: 6,
+                background: "rgba(245, 158, 11, 0.12)",
+                border: "1px solid rgba(245, 158, 11, 0.3)",
+                color: "#F59E0B",
+                fontSize: 12,
+                fontWeight: 600,
+                textDecoration: "none",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(245, 158, 11, 0.22)";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(245, 158, 11, 0.12)";
+              }}
+            >
+              <ArrowLeft size={14} />
+              <span>Back to Overview</span>
+            </Link>
+          )}
+
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+            <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+              <rect x="1" y="1" width="24" height="24" rx="5" stroke="#F59E0B" strokeWidth="1.5" />
+              <line x1="13" y1="5" x2="13" y2="21" stroke="#F59E0B" strokeWidth="1.5" />
+              <line x1="7"  y1="9"  x2="13" y2="9"  stroke="#8B5CF6" strokeWidth="1.5" />
+              <line x1="7"  y1="13" x2="13" y2="13" stroke="#10B981" strokeWidth="1.5" />
+              <line x1="7"  y1="17" x2="13" y2="17" stroke="#3B82F6" strokeWidth="1.5" />
+              <circle cx="7"  cy="9"  r="1.8" fill="#8B5CF6" />
+              <circle cx="7"  cy="13" r="1.8" fill="#10B981" />
+              <circle cx="7"  cy="17" r="1.8" fill="#3B82F6" />
+            </svg>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 17, color: "#E8F0F8" }}>
+              Artha AI
             </span>
-            API LIVE
-          </div>
-        </Link>
+            {/* live badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 9px", borderRadius: 99, background: "rgba(16,185,129,0.09)", border: "1px solid rgba(16,185,129,0.25)", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, letterSpacing: "0.1em", color: "#10B981" }}>
+              <span style={{ position: "relative", display: "inline-flex", width: 6, height: 6 }}>
+                <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#10B981", animation: "ping 1.4s ease-in-out infinite", opacity: 0.6 }} />
+                <span style={{ position: "relative", display: "block", width: 6, height: 6, borderRadius: "50%", background: "#10B981" }} />
+              </span>
+              API LIVE
+            </div>
+          </Link>
+        </div>
 
         {/* Desktop links */}
         <div className="hidden md:flex" style={{ gap: 28, alignItems: "center" }}>
