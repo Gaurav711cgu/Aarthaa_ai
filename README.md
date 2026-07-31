@@ -77,18 +77,18 @@ pinned: false
 ## System Architecture
 
 ```mermaid
-graph TD
+flowchart TD
     A["Banking Transaction Stream"] -->|Ingestion API| B["FastAPI Gateway"]
     B -->|Feature Extraction| C["Ensemble Fraud Model"]
-    C -->|LightGBM 0.7 + GraphSAGE GNN 0.3| D["0.9138 AUC Fraud Engine"]
-    D -->|Fraud Flag & SHAP Values| E["SHAP Explainer Engine"]
+    C -->|LightGBM & GraphSAGE GNN| D["0.9138 AUC Fraud Engine"]
+    D -->|SHAP Values| E["SHAP Explainer Engine"]
     D -->|Rule Evaluation| F["SARRules Recommendation Layer"]
     
-    F -->|P1 Critical / P2 High / P3 Medium| G["Investigator Review Queue"]
-    F -->|RBI Circular DPSS.CO.PD No.1102| H["Automated SAR Draft Filing"]
+    F -->|P1 Critical / P2 High| G["Investigator Review Queue"]
+    F -->|RBI Circular Compliance| H["Automated SAR Draft Filing"]
 
     B -->|Compliance Vector Query| I["RegGuard Hybrid RAG Engine"]
-    I -->|Dense bge-small + TF-IDF Sparse| J["150+ Regulatory Sections"]
+    I -->|Dense bge-small & TF-IDF| J["150+ Regulatory Sections"]
     J -->|RBI / SEBI / NPCI / IRDAI| K["Verified Policy Citation"]
 ```
 
