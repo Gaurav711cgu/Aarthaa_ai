@@ -10,6 +10,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <title>Artha AI — Enterprise FinTech Intelligence Platform</title>
+      </head>
       <body>{children}</body>
     </html>
   );
