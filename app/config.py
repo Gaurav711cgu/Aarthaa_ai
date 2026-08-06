@@ -1,5 +1,9 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+import logging
 from typing import Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 # Sentinel — detected at startup to enforce no-default-secret policy in ALL environments
 _PLACEHOLDER_SECRET = "artha_dev_placeholder_secret_key_32chars"
@@ -10,7 +14,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = _PLACEHOLDER_SECRET
 
     POSTGRES_USER: str = "artha_admin"
-    POSTGRES_PASSWORD: str = "artha_password_secure_2026"
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "")
     POSTGRES_DB: str = "artha_db"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
@@ -21,12 +25,12 @@ class Settings(BaseSettings):
     DATABASE_URL: Optional[str] = None
     REDIS_URL: Optional[str] = None
 
-    ADMIN_USERNAME: str = "admin"
-    ADMIN_PASSWORD: str = "admin_password_2026"
-    ANALYST_USERNAME: str = "analyst"
-    ANALYST_PASSWORD: str = "analyst_password_2026"
-    READONLY_USERNAME: str = "readonly"
-    READONLY_PASSWORD: str = "readonly_password_2026"
+    ADMIN_USERNAME: str = os.getenv("ARTHA_ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD: str = os.getenv("ARTHA_ADMIN_PASSWORD", "admin_password_2026")
+    ANALYST_USERNAME: str = os.getenv("ARTHA_ANALYST_USERNAME", "analyst")
+    ANALYST_PASSWORD: str = os.getenv("ARTHA_ANALYST_PASSWORD", "analyst_password_2026")
+    READONLY_USERNAME: str = os.getenv("ARTHA_READONLY_USERNAME", "readonly")
+    READONLY_PASSWORD: str = os.getenv("ARTHA_READONLY_PASSWORD", "readonly_password_2026")
 
     USD_INR_RATE: float = 84.0  # Update quarterly. Source: RBI reference rate.
     USD_INR_RATE_DATE: str = "2026-05-01"
@@ -55,10 +59,9 @@ class Settings(BaseSettings):
                 "Set it via the SECRET_KEY environment variable or .env file."
             )
 
-        # Warn loudly if the placeholder is still in use (dev only — never commit real keys)
+        # Warn loudly if the placeholder is still in use
         if self.SECRET_KEY == _PLACEHOLDER_SECRET:
-            import logging
-            logging.getLogger(__name__).warning(
+            logger.warning(
                 "⚠️  SECRET_KEY is using the default placeholder. "
                 "Set a real SECRET_KEY environment variable before any production or demo deployment."
             )
@@ -76,4 +79,3 @@ class Settings(BaseSettings):
                 )
 
 settings = Settings()
-

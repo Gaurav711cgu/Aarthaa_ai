@@ -111,7 +111,7 @@ class GraphFraudScorer:
     def load_model(self):
         if os.path.exists(MODEL_PATH):
             try:
-                self.model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
+                self.model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu", weights_only=True))
                 self.model.eval()
                 self.model_loaded = True
                 logger.info(f"Loaded GraphSAGE model from {MODEL_PATH}")

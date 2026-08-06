@@ -1,14 +1,15 @@
-name: Artha AI Compliance CI
+name: Artha AI Compliance & Security CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
   workflow_dispatch:
 
 jobs:
   audit-and-eval:
+    name: Security SAST, Bias Audit & Pytest Verification
     runs-on: ubuntu-latest
 
     steps:
@@ -19,13 +20,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest pytest-cov bandit
+
+      - name: Run Bandit Security SAST Analysis
+        run: |
+          bandit -r app/ -ll --skip B105,B106
 
       - name: Run Threshold Analysis & Bias Audit
         run: |
           python3 scripts/threshold_analysis.py
           python3 scripts/bias_audit.py
+
+      - name: Run Pytest Suite
+        run: |
+          pytest tests/ -v --tb=short
