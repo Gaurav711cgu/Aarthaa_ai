@@ -1,0 +1,5 @@
+{
+  "dataset_drift": false,
+  "share_of_drifted_columns": 0.05,
+  "threshold": 0.3
+}
