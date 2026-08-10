@@ -851,35 +851,45 @@ class TestFinLensEngineExtPaths:
             
     def test_offline_sql_execution_error(self):
         from app.services.finlens_engine import finlens_engine
-        mock_db = MagicMock()
-        mock_db.execute.side_effect = Exception("DB execution error")
-        res = finlens_engine.answer_numerical_query(mock_db, "What is my closing balance?", 1)
-        assert res["audit_status"] == "EXECUTION_ERROR"
-        assert "Failed to compile SQL" in res["answer"]
+        original_executor = finlens_engine.agent_executor
+        try:
+            finlens_engine.agent_executor = None
+            mock_db = MagicMock()
+            mock_db.execute.side_effect = Exception("DB execution error")
+            res = finlens_engine.answer_numerical_query(mock_db, "What is my closing balance?", 1)
+            assert res["audit_status"] == "EXECUTION_ERROR"
+            assert "Failed to compile SQL" in res["answer"]
+        finally:
+            finlens_engine.agent_executor = original_executor
         
     @patch("app.services.finlens_engine._llm_limiter.is_allowed", return_value=True)
     def test_offline_router_keywords(self, mock_is_allowed):
         from app.services.finlens_engine import finlens_engine
-        mock_db = MagicMock()
-        mock_db.execute.return_value.scalar.return_value = 100.0
-        
-        queries = [
-            ("opening balance", "Opening Balance"),
-            ("salary paycheck", "Salary Earnings"),
-            ("total deposits credits", "Total Deposits"),
-            ("swiggy food zomato", "Total Food Spend"),
-            ("rent payment", "Rent Expenditure"),
-            ("uber cab travel", "Total Travel Spend"),
-            ("shopping amazon flipkart", "Total Shopping Spend"),
-            ("bill utility phone", "Total Utility Spends"),
-            ("max largest transaction", "Maximum Transaction Value"),
-            ("min smallest transaction", "Minimum Transaction Value"),
-            ("average mean transaction", "Average Transaction Value"),
-            ("withdrawals total debits spent", "Total Withdrawals"),
-            ("cash transaction", "Total Cash Flows"),
-            ("how many transaction", "Transaction Count")
-        ]
-        
-        for q, expected_label in queries:
-            res = finlens_engine.answer_numerical_query(mock_db, q, 1)
-            assert expected_label in res["answer"] or (q == "how many transaction" and "transactions recorded" in res["answer"])
+        original_executor = finlens_engine.agent_executor
+        try:
+            finlens_engine.agent_executor = None
+            mock_db = MagicMock()
+            mock_db.execute.return_value.scalar.return_value = 100.0
+            
+            queries = [
+                ("opening balance", "Opening Balance"),
+                ("salary paycheck", "Salary Earnings"),
+                ("total deposits credits", "Total Deposits"),
+                ("swiggy food zomato", "Total Food Spend"),
+                ("rent payment", "Rent Expenditure"),
+                ("uber cab travel", "Total Travel Spend"),
+                ("shopping amazon flipkart", "Total Shopping Spend"),
+                ("bill utility phone", "Total Utility Spends"),
+                ("max largest transaction", "Maximum Transaction Value"),
+                ("min smallest transaction", "Minimum Transaction Value"),
+                ("average mean transaction", "Average Transaction Value"),
+                ("withdrawals total debits spent", "Total Withdrawals"),
+                ("cash transaction", "Total Cash Flows"),
+                ("how many transaction", "Transaction Count")
+            ]
+            
+            for q, expected_label in queries:
+                res = finlens_engine.answer_numerical_query(mock_db, q, 1)
+                assert expected_label in res["answer"] or (q == "how many transaction" and "transactions recorded" in res["answer"])
+        finally:
+            finlens_engine.agent_executor = original_executor

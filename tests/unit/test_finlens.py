@@ -68,39 +68,51 @@ def test_query_closing_balance():
 
 def test_query_food_expenses():
     """Verify that querying food spends successfully sums DEBIT food transactions in SQL."""
-    headers = get_analyst_headers()
-    upload_res = client.post("/api/v1/finlens/upload", json={"raw_text": MOCK_STATEMENT_TEXT}, headers=headers)
-    statement_id = upload_res.json()["statement_id"]
-    
-    payload = {
-        "query": "How much did I spend on food and restaurants?",
-        "statement_id": statement_id
-    }
-    
-    response = client.post("/api/v1/finlens/query", json=payload, headers=headers)
-    assert response.status_code == 200
-    
-    data = response.json()
-    assert data["numerical_value"] == 450.0  # Swiggy 450.0
-    assert any(term in data["answer"].lower() for term in ["food", "swiggy", "450", "total food spend"])
-    assert any(term in data["compiled_sql"].upper() for term in ["SUM", "SELECT", "STATEMENT_TRANSACTIONS"])
+    from app.services.finlens_engine import finlens_engine
+    original_executor = finlens_engine.agent_executor
+    try:
+        finlens_engine.agent_executor = None
+        headers = get_analyst_headers()
+        upload_res = client.post("/api/v1/finlens/upload", json={"raw_text": MOCK_STATEMENT_TEXT}, headers=headers)
+        statement_id = upload_res.json()["statement_id"]
+        
+        payload = {
+            "query": "How much did I spend on food and restaurants?",
+            "statement_id": statement_id
+        }
+        
+        response = client.post("/api/v1/finlens/query", json=payload, headers=headers)
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["numerical_value"] == 450.0  # Swiggy 450.0
+        assert any(term in data["answer"].lower() for term in ["food", "swiggy", "450", "total food spend"])
+        assert any(term in data["compiled_sql"].upper() for term in ["SUM", "SELECT", "STATEMENT_TRANSACTIONS"])
+    finally:
+        finlens_engine.agent_executor = original_executor
 
 def test_query_salary_credits():
     """Verify that querying salary earnings filters by CREDIT and description in SQL."""
-    headers = get_analyst_headers()
-    upload_res = client.post("/api/v1/finlens/upload", json={"raw_text": MOCK_STATEMENT_TEXT}, headers=headers)
-    statement_id = upload_res.json()["statement_id"]
-    
-    payload = {
-        "query": "What is my total salary deposit?",
-        "statement_id": statement_id
-    }
-    
-    response = client.post("/api/v1/finlens/query", json=payload, headers=headers)
-    assert response.status_code == 200
-    
-    data = response.json()
-    assert data["numerical_value"] == 125000.0  # Salary 125,000.0
+    from app.services.finlens_engine import finlens_engine
+    original_executor = finlens_engine.agent_executor
+    try:
+        finlens_engine.agent_executor = None
+        headers = get_analyst_headers()
+        upload_res = client.post("/api/v1/finlens/upload", json={"raw_text": MOCK_STATEMENT_TEXT}, headers=headers)
+        statement_id = upload_res.json()["statement_id"]
+        
+        payload = {
+            "query": "What is my total salary deposit?",
+            "statement_id": statement_id
+        }
+        
+        response = client.post("/api/v1/finlens/query", json=payload, headers=headers)
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["numerical_value"] == 125000.0
+    finally:
+        finlens_engine.agent_executor = original_executor  # Salary 125,000.0
     assert any(term in data["answer"].lower() for term in ["salary", "125", "earnings", "deposit"])
     assert any(term in data["compiled_sql"].upper() for term in ["SELECT", "SUM", "LIKE", "STATEMENT_TRANSACTIONS"])
 
