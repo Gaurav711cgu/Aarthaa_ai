@@ -46,25 +46,29 @@ def test_upload_and_parse_bank_statement():
 
 def test_query_closing_balance():
     """Verify that querying closing balance generates a SQL query and returns the exact math-verified float value."""
-    # First, ensure statement is uploaded
-    headers = get_analyst_headers()
-    upload_res = client.post("/api/v1/finlens/upload", json={"raw_text": MOCK_STATEMENT_TEXT}, headers=headers)
-    statement_id = upload_res.json()["statement_id"]
-    
-    # Query closing balance
-    payload = {
-        "query": "Show me my final closing balance",
-        "statement_id": statement_id
-    }
-    
-    response = client.post("/api/v1/finlens/query", json=payload, headers=headers)
-    assert response.status_code == 200
-    
-    data = response.json()
-    assert data["numerical_value"] == 159200.0
-    assert "Closing Balance" in data["answer"]
-    assert "SELECT balance" in data["compiled_sql"]
-    assert data["audit_status"] == "VERIFIED_VIA_SQL_DATABASE"
+    from app.services.finlens_engine import finlens_engine
+    original_executor = finlens_engine.agent_executor
+    try:
+        finlens_engine.agent_executor = None
+        headers = get_analyst_headers()
+        upload_res = client.post("/api/v1/finlens/upload", json={"raw_text": MOCK_STATEMENT_TEXT}, headers=headers)
+        statement_id = upload_res.json()["statement_id"]
+        
+        payload = {
+            "query": "Show me my final closing balance",
+            "statement_id": statement_id
+        }
+        
+        response = client.post("/api/v1/finlens/query", json=payload, headers=headers)
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["numerical_value"] == 159200.0
+        assert "Closing Balance" in data["answer"]
+        assert "SELECT balance" in data["compiled_sql"]
+        assert data["audit_status"] == "VERIFIED_VIA_SQL_DATABASE"
+    finally:
+        finlens_engine.agent_executor = original_executor
 
 def test_query_food_expenses():
     """Verify that querying food spends successfully sums DEBIT food transactions in SQL."""
