@@ -130,11 +130,11 @@ class FraudScoringEngine:
                 "velocity_6h": int(count_6h),
                 "velocity_24h": int(count_24h)
             }
-        except (RuntimeError, ConnectionError, ValueError) as e:
+        except Exception as e:
             logger.error(f"Redis velocity feature lookup failed: {e}. Defaulting to fallback 1.")
             return {"velocity_1h": 1, "velocity_6h": 1, "velocity_24h": 1}
 
-    def score_transaction(self, tx_data: Dict[str, Any]) -> Dict[str, Any]:
+    def score_transaction(self, tx_data: Dict[str, Any], compute_shap: bool = True) -> Dict[str, Any]:
         """Calculates fraud probabilities, anomaly thresholds, and natural language explanations."""
         # Standardize features dictionary
         amount_val = tx_data.get("amount")
@@ -221,15 +221,17 @@ class FraudScoringEngine:
                     anomaly_score = 0.05
                 
                 # TreeSHAP feature explanations
-                raw_shap_vals = self.explainer.shap_values(df_row)
-                
-                if isinstance(raw_shap_vals, list):
-                    shap_vals = raw_shap_vals[1][0]
-                elif isinstance(raw_shap_vals, np.ndarray):
-                    if len(raw_shap_vals.shape) == 3:
-                        shap_vals = raw_shap_vals[0, :, 1]
+                if compute_shap:
+                    raw_shap_vals = self.explainer.shap_values(df_row)
+                    if isinstance(raw_shap_vals, list):
+                        shap_vals = raw_shap_vals[1][0]
+                    elif isinstance(raw_shap_vals, np.ndarray):
+                        if len(raw_shap_vals.shape) == 3:
+                            shap_vals = raw_shap_vals[0, :, 1]
+                        else:
+                            shap_vals = raw_shap_vals[0]
                     else:
-                        shap_vals = raw_shap_vals[0]
+                        shap_vals = np.zeros(len(self.features))
                 else:
                     shap_vals = np.zeros(len(self.features))
                 
@@ -297,6 +299,41 @@ class FraudScoringEngine:
         fallback_res = self._heuristic_fallback(fallback_tx)
         fallback_res["meta_dict"] = fallback_meta
         return fallback_res
+
+    def score_dataframe(self, df: pd.DataFrame) -> np.ndarray:
+        """Vectorized batch scoring of a DataFrame using the trained model."""
+        if self.is_compiled and self.rf_model is not None:
+            feat_df = pd.DataFrame(index=df.index)
+            
+            for col in self.features:
+                if col in df.columns:
+                    s = df[col]
+                    if pd.api.types.is_numeric_dtype(s):
+                        feat_df[col] = pd.to_numeric(s, errors="coerce").fillna(0.0).astype(float)
+                    else:
+                        mapping = self.encoder_mappings.get(col, [])
+                        if mapping:
+                            feat_df[col] = s.map(lambda x: mapping.index(x) if x in mapping else 0).fillna(0).astype(int)
+                        else:
+                            feat_df[col] = s.astype("category").cat.codes.astype(int)
+                else:
+                    feat_df[col] = 0.0
+
+            try:
+                if hasattr(self.rf_model, "predict_proba"):
+                    probs = self.rf_model.predict_proba(feat_df)[:, 1]
+                else:
+                    raw_pred = self.rf_model.predict(feat_df)
+                    probs = 1.0 / (1.0 + np.exp(-raw_pred)) if np.max(raw_pred) > 1.0 or np.min(raw_pred) < 0.0 else raw_pred
+                return np.clip(probs, 0.0, 1.0)
+            except Exception as e:
+                logger.error(f"Vectorized batch inference error: {e}. Falling back to heuristic probabilities.")
+                signal = (df.get("velocity_1h", 1) * 0.15 + df.get("amt_to_card_mean", 1.0) * 0.12 + (df.get("TransactionAmt", 0) > 200).astype(int) * 0.3)
+                return np.clip(1.0 / (1.0 + np.exp(-signal)), 0.0, 1.0)
+
+        # Heuristic fallback
+        signal = (df.get("velocity_1h", 1) * 0.15 + df.get("amt_to_card_mean", 1.0) * 0.12 + (df.get("TransactionAmt", 0) > 200).astype(int) * 0.3)
+        return np.clip(1.0 / (1.0 + np.exp(-signal)), 0.0, 1.0)
 
     def _compile_explanation_and_tier(
         self, prob: float, anomaly_score: float, shap_vals: Dict[str, float], tx: Dict[str, Any]

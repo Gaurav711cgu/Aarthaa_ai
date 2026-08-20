@@ -3,13 +3,14 @@ Fairness audit for fraud model across card network, card type, and email domain 
 Produces: reports/bias_audit.json
 
 Paper & Industry Reference: JP Morgan OmniAI Model Risk Governance.
-Audits AUC-ROC parity across subgroups to detect disparate impact before model deployment.
+Audits AUC-ROC parity across subgroups using real LightGBM model predictions.
 
 Usage:
     python3 scripts/bias_audit.py
 """
 
 import os
+import sys
 import json
 import logging
 import pandas as pd
@@ -20,17 +21,21 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE_DIR)
+
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
+from app.services.fraud_model import fraud_engine
+
 SUBGROUP_COLUMNS = [
     "card4",          # visa / mastercard / discover / american express
     "card6",          # debit / credit
-    "P_emaildomain",  # email domain as proxy for customer demographic
+    "P_emaildomain",  # email domain proxy for customer demographic
 ]
 
-FAIRNESS_THRESHOLD = 0.05  # max allowed AUC gap between any subgroup and overall AUC
+FAIRNESS_THRESHOLD = 0.05
 
 
 def audit_subgroup(probs: np.ndarray, y_val: np.ndarray, df_val: pd.DataFrame, col: str):
@@ -56,7 +61,7 @@ def audit_subgroup(probs: np.ndarray, y_val: np.ndarray, df_val: pd.DataFrame, c
         n_samples = int(mask.sum())
         n_fraud = int(y_val[mask].sum())
         
-        if n_samples < 50 or n_fraud < 5:  # skip tiny subgroups without enough positive cases
+        if n_samples < 50 or n_fraud < 5:
             continue
             
         try:
@@ -94,14 +99,9 @@ def main():
 
     y_val = df_val["isFraud"].values
 
-    # Calibrate probabilities to exact IEEE-CIS temporal split distribution (0.914 AUC)
-    np.random.seed(42)
-    noise_fraud = np.random.logistic(loc=0.0, scale=1.2, size=len(y_val))
-    noise_clean = np.random.logistic(loc=0.0, scale=0.9, size=len(y_val))
-    
-    signal = (df_val["velocity_1h"] * 0.15 + df_val["amt_to_card_mean"] * 0.12 + (df_val["TransactionAmt"] > 200).astype(int) * 0.3)
-    logits = np.where(y_val == 1, 0.4 + signal + noise_fraud, -2.4 + signal * 0.08 + noise_clean)
-    probs = 1.0 / (1.0 + np.exp(-logits))
+    # Run real model inference in vectorized batch
+    logger.info("Scoring validation set with production fraud model...")
+    probs = fraud_engine.score_dataframe(df_val)
 
     overall_auc = roc_auc_score(y_val, probs)
     logger.info(f"Overall Validation Model AUC-ROC: {overall_auc:.4f}")

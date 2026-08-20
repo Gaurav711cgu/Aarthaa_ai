@@ -17,9 +17,15 @@ class ShadowModelEvaluator:
     def shadow_evaluate(self, primary_risk_score: float, payload: Dict[str, Any]) -> Dict[str, Any]:
         self.evaluations_count += 1
         
-        # Simulate challenger model GraphSAGE GNN prediction
-        amount = float(payload.get("amount", 100.0))
-        challenger_risk_score = min(max(primary_risk_score + (0.05 if amount > 500 else -0.02), 0.0), 1.0)
+        # Real challenger model evaluation using GraphSAGE GNN
+        try:
+            from app.services.graph_fraud import graph_scorer
+            gnn_res = graph_scorer.score_with_context(payload, [])
+            challenger_risk_score = float(gnn_res.get("gnn_score", primary_risk_score))
+        except Exception as e:
+            logger.error(f"Challenger GraphSAGE evaluation error: {e}. Using calibrated fallback.")
+            amount = float(payload.get("amount", payload.get("TransactionAmt", 100.0)))
+            challenger_risk_score = min(max(primary_risk_score * 0.95 + (0.05 if amount > 500 else 0.0), 0.0), 1.0)
         
         delta = abs(primary_risk_score - challenger_risk_score)
         is_divergent = delta > self.divergence_threshold
@@ -28,9 +34,9 @@ class ShadowModelEvaluator:
             logger.warning(f"Shadow model prediction divergence detected: primary={primary_risk_score:.3f}, shadow={challenger_risk_score:.3f}, delta={delta:.3f}")
 
         return {
-            "primary_score": primary_risk_score,
-            "shadow_score": challenger_risk_score,
-            "delta": delta,
+            "primary_score": float(primary_risk_score),
+            "shadow_score": float(challenger_risk_score),
+            "delta": float(delta),
             "is_divergent": is_divergent,
             "timestamp": time.time()
         }

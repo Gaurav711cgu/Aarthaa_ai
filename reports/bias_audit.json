@@ -1,114 +1,114 @@
 {
-  "audit_timestamp": "2026-07-26T01:48:23.307576",
+  "audit_timestamp": "2026-08-20T20:58:11.256356",
   "model_version": "lgbm-v2.1-gnn-ensemble",
-  "overall_auc_roc": 1.0,
+  "overall_auc_roc": 0.6633,
   "fairness_threshold": 0.05,
   "methodology": "AUC-ROC parity across card network, card type, and email domain subgroups",
   "subgroup_audits": [
     {
       "column": "card4",
-      "overall_auc": 1.0,
+      "overall_auc": 0.6633,
       "subgroups": [
         {
           "subgroup_value": "visa",
           "sample_count": 6487,
           "fraud_count": 210,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
+          "auc_roc": 0.6848,
+          "auc_gap_from_overall": 0.0215,
           "flagged": false
         },
         {
           "subgroup_value": "mastercard",
           "sample_count": 2795,
           "fraud_count": 94,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
+          "auc_roc": 0.6431,
+          "auc_gap_from_overall": 0.0201,
           "flagged": false
         },
         {
           "subgroup_value": "discover",
           "sample_count": 391,
           "fraud_count": 16,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
-          "flagged": false
+          "auc_roc": 0.5882,
+          "auc_gap_from_overall": 0.0751,
+          "flagged": true
         },
         {
           "subgroup_value": "american express",
           "sample_count": 327,
           "fraud_count": 8,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
-          "flagged": false
+          "auc_roc": 0.5858,
+          "auc_gap_from_overall": 0.0775,
+          "flagged": true
         }
       ],
-      "max_auc_gap": 0.0,
-      "fairness_flag": false
+      "max_auc_gap": 0.0775,
+      "fairness_flag": true
     },
     {
       "column": "card6",
-      "overall_auc": 1.0,
+      "overall_auc": 0.6633,
       "subgroups": [
         {
           "subgroup_value": "credit",
           "sample_count": 2763,
           "fraud_count": 90,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
+          "auc_roc": 0.6494,
+          "auc_gap_from_overall": 0.0139,
           "flagged": false
         },
         {
           "subgroup_value": "debit",
           "sample_count": 7237,
           "fraud_count": 238,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
+          "auc_roc": 0.6684,
+          "auc_gap_from_overall": 0.0051,
           "flagged": false
         }
       ],
-      "max_auc_gap": 0.0,
+      "max_auc_gap": 0.0139,
       "fairness_flag": false
     },
     {
       "column": "P_emaildomain",
-      "overall_auc": 1.0,
+      "overall_auc": 0.6633,
       "subgroups": [
         {
           "subgroup_value": "gmail.com",
           "sample_count": 4958,
           "fraud_count": 170,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
+          "auc_roc": 0.6357,
+          "auc_gap_from_overall": 0.0276,
           "flagged": false
         },
         {
           "subgroup_value": "yahoo.com",
           "sample_count": 3073,
           "fraud_count": 87,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
+          "auc_roc": 0.6974,
+          "auc_gap_from_overall": 0.0342,
           "flagged": false
         },
         {
           "subgroup_value": "hotmail.com",
           "sample_count": 1472,
           "fraud_count": 53,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
+          "auc_roc": 0.708,
+          "auc_gap_from_overall": 0.0447,
           "flagged": false
         },
         {
           "subgroup_value": "anonymous.com",
           "sample_count": 497,
           "fraud_count": 18,
-          "auc_roc": 1.0,
-          "auc_gap_from_overall": 0.0,
+          "auc_roc": 0.6178,
+          "auc_gap_from_overall": 0.0454,
           "flagged": false
         }
       ],
-      "max_auc_gap": 0.0,
+      "max_auc_gap": 0.0454,
       "fairness_flag": false
     }
   ],
-  "overall_bias_audit_passed": true
+  "overall_bias_audit_passed": false
 }
