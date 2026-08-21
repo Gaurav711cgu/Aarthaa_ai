@@ -26,11 +26,11 @@ class Settings(BaseSettings):
     REDIS_URL: Optional[str] = None
 
     ADMIN_USERNAME: str = os.getenv("ARTHA_ADMIN_USERNAME", "admin")
-    ADMIN_PASSWORD: str = os.getenv("ARTHA_ADMIN_PASSWORD", "admin_password_2026")
+    ADMIN_PASSWORD: str = os.getenv("ARTHA_ADMIN_PASSWORD", "")
     ANALYST_USERNAME: str = os.getenv("ARTHA_ANALYST_USERNAME", "analyst")
-    ANALYST_PASSWORD: str = os.getenv("ARTHA_ANALYST_PASSWORD", "analyst_password_2026")
+    ANALYST_PASSWORD: str = os.getenv("ARTHA_ANALYST_PASSWORD", "")
     READONLY_USERNAME: str = os.getenv("ARTHA_READONLY_USERNAME", "readonly")
-    READONLY_PASSWORD: str = os.getenv("ARTHA_READONLY_PASSWORD", "readonly_password_2026")
+    READONLY_PASSWORD: str = os.getenv("ARTHA_READONLY_PASSWORD", "")
 
     USD_INR_RATE: float = 84.0  # Update quarterly. Source: RBI reference rate.
     USD_INR_RATE_DATE: str = "2026-05-01"
@@ -66,16 +66,26 @@ class Settings(BaseSettings):
                 "Set a real SECRET_KEY environment variable before any production or demo deployment."
             )
 
-        # Hard-fail in production if placeholder or missing Groq key
+        # Hard-fail in production if placeholder secrets or missing credentials
         if self.ENV == "production":
             if self.SECRET_KEY == _PLACEHOLDER_SECRET:
                 raise ValueError(
                     "STARTUP FAILURE: Placeholder SECRET_KEY is not allowed in production. "
                     "Set a cryptographically secure SECRET_KEY in your environment."
                 )
+            if not self.ADMIN_PASSWORD or not self.ANALYST_PASSWORD:
+                raise ValueError(
+                    "STARTUP FAILURE: ARTHA_ADMIN_PASSWORD and ARTHA_ANALYST_PASSWORD "
+                    "must be set explicitly via environment variables in production mode."
+                )
             if not self.GROQ_API_KEY:
                 raise ValueError(
                     "STARTUP FAILURE: GROQ_API_KEY must be set in production mode."
                 )
+        elif not self.ADMIN_PASSWORD:
+            # Generate deterministic development fallback for local developer ergonomics
+            self.ADMIN_PASSWORD = os.getenv("ARTHA_DEV_ADMIN_PWD", "dev_admin_local_only")
+            self.ANALYST_PASSWORD = os.getenv("ARTHA_DEV_ANALYST_PWD", "dev_analyst_local_only")
+            self.READONLY_PASSWORD = os.getenv("ARTHA_DEV_READONLY_PWD", "dev_readonly_local_only")
 
 settings = Settings()
