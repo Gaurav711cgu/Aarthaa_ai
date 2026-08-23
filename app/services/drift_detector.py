@@ -61,7 +61,10 @@ class DataDriftDetector:
             self._generate_fallback_baseline()
 
     def _generate_fallback_baseline(self):
-        """Generates a stable synthetic baseline dataset of 5,000 rows to ensure runtime durability."""
+        """Generates a stable synthetic baseline dataset of 5,000 rows to ensure runtime durability.
+        Uses synthetic baseline for development. Production should load historical transaction baseline from data/baseline_transactions.csv.
+        """
+        logger.warning('Using synthetic drift baseline. Load real baseline for production.')
         np.random.seed(2026)
         n_rows = 5000
         self.baseline_df = pd.DataFrame({

@@ -37,8 +37,6 @@ class FraudScoringEngine:
         self.is_training = False
         
         self._load_model()
-        if not self.is_compiled:
-            self.start_background_training()
 
     @property
     def model_loaded(self) -> bool:
@@ -88,6 +86,11 @@ class FraudScoringEngine:
                 
         # Default fallback flag
         self.is_compiled = False
+        # Production: Pre-trained model must exist. Auto-training is for development only.
+        if os.environ.get('ARTHA_ENV') == 'production':
+            logger.critical("Model file not found in production.")
+            raise RuntimeError("Missing pre-trained model in production environment.")
+            
         logger.warning("Ensemble model package not found. Activating heuristic fallback scoring engine.")
 
     def start_background_training(self):

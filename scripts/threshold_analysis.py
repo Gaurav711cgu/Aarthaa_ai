@@ -2,6 +2,8 @@
 Threshold sweep analysis for fraud model operating point selection.
 Paper & Industry Reference: JP Morgan OmniAI & RBI Circular DPSS.CO.PD No.1102/02.14.003/2019-20.
 
+WARNING: This script uses synthetic validation data for threshold calibration demonstration. For production, replace with actual model inference on held-out IEEE-CIS data.
+
 Produces:
   - reports/threshold_analysis.json (Full sweep + selected Pareto-optimal operating point)
   - reports/threshold_curve.png     (Precision / Recall / FPR vs Threshold plot)
@@ -27,14 +29,16 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
 
-def generate_synthetic_val_split_if_missing(val_path: str, n_samples: int = 10000):
+def generate_synthetic_validation_demo(val_path: str, n_samples: int = 10000):
     """Generates a realistic validation split matching IEEE-CIS distributions if raw files are missing."""
+    # SYNTHETIC DATA - Replace with real model inference
     np.random.seed(42)
     logger.info(f"Generating synthetic validation split ({n_samples:,} rows) for threshold analysis...")
     
     # 3.5% fraud prevalence
     is_fraud = np.random.choice([0, 1], size=n_samples, p=[0.965, 0.035])
     
+    # SYNTHETIC DATA - Replace with real model inference
     # Feature generation
     velocity_1h = np.where(is_fraud == 1, np.random.randint(2, 12, size=n_samples), np.random.randint(1, 4, size=n_samples))
     velocity_24h = velocity_1h + np.random.randint(1, 15, size=n_samples)
@@ -117,13 +121,14 @@ def select_operating_point(results):
 def main():
     val_path = os.path.join(DATA_DIR, "val_split.csv")
     if not os.path.exists(val_path):
-        df_val = generate_synthetic_val_split_if_missing(val_path)
+        df_val = generate_synthetic_validation_demo(val_path)
     else:
         df_val = pd.read_csv(val_path)
 
     y_val = df_val["isFraud"].values
     
     # Calibrate probabilities to exact IEEE-CIS temporal split distribution (0.914 AUC)
+    # SYNTHETIC DATA - Replace with real model inference
     np.random.seed(42)
     noise_fraud = np.random.logistic(loc=0.0, scale=1.2, size=len(y_val))
     noise_clean = np.random.logistic(loc=0.0, scale=0.9, size=len(y_val))

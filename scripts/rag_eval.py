@@ -17,7 +17,11 @@ Run:
 import os
 import sys
 import json
+import logging
 from typing import List, Dict
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(base_dir)
@@ -172,6 +176,8 @@ def evaluate_retriever_ablation(chunks: List[Dict]) -> Dict:
     top1_acc_hybrid = correct_top1_hybrid / valid_positives
     neg_acc_hybrid  = negative_handled_correctly / len(NEGATIVE_QUERIES)
     
+    # PLACEHOLDER: Replace with actual Dense-only and TF-IDF-only evaluation passes
+    logger.warning('Ablation baselines are estimated deltas, not independently measured.')
     # Simulating ablation baselines based on dense-only & keyword-only retrieval properties
     top3_acc_dense = top3_acc_hybrid - 0.082
     top1_acc_dense = top1_acc_hybrid - 0.094

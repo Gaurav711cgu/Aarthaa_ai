@@ -36,3 +36,4 @@ Aartha_ai/
 # System files
 .DS_Store
 Thumbs.db
+*.log

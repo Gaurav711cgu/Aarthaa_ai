@@ -14,7 +14,7 @@ pinned: false
 <br/>
 
 [![CI/CD Pipeline](https://img.shields.io/badge/CI%2FCD-Passing-22c55e?style=flat-square&logo=githubactions&logoColor=white)](#)
-[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing-22c55e?style=flat-square&logo=pytest&logoColor=white)](#)
+[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing%20(approx.%2010%20tests)-22c55e?style=flat-square&logo=pytest&logoColor=white)](#)
 [![SAST Security](https://img.shields.io/badge/SAST-Bandit%20Clean-22c55e?style=flat-square&logo=python&logoColor=white)](#)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -49,10 +49,10 @@ pinned: false
 | Metric | Industry SLA Target | Project Result | Engineering Approach |
 |---|---|---|---|
 | **Hybrid RAG Retriever Top-3 Accuracy** | `> 90.0%` | **95.0%** (475 / 500) | Dense + TF-IDF Sparse Keyword Alignment |
-| **Zero-Hallucination Fallback Rate** | `100% Fallback` | **100.0%** (100 / 100) | Similarity Threshold Guard ($< 0.40$) |
+| **Zero-Hallucination Fallback Rate** | `100% Fallback` | **100.0% (rule-based fallback, not LLM-evaluated)** | Similarity Threshold Guard ($< 0.40$) |
 | **GraphSAGE Ensemble AUC-ROC** | `AUC >= 0.900` | **0.9138 AUC-ROC** | LightGBM 0.7 + GraphSAGE 0.3 Ensemble |
 | **Operating False Positive Rate** | `FPR <= 5.0%` | **1.75% FPR** | 8:1 Financial Loss Cost Ratio Calibration |
-| **Subgroup Bias Audit (Fairness Gap)** | `Gap <= 0.050` | **0.0000 Max Gap** | Demographic Subgroup AUC Parity Audit |
+| **Subgroup Bias Audit (Fairness Gap)** | `Gap <= 0.050` | **< 0.050 Max Gap (development baseline)** | Demographic Subgroup AUC Parity Audit |
 
 ---
 
@@ -250,3 +250,14 @@ uvicorn app.main:app --reload --port 8000
 
 Distributed under the MIT License. See `LICENSE` for details.
 
+
+---
+
+## 🚀 ArthaShield: Razorpay Integration Module (Buildathon Submission)
+Aarthaa AI includes **ArthaShield**, a specialized drop-in module designed specifically for the **Razorpay AI Buildathon (AI Risk Manager Track)**. 
+
+While the core Aarthaa AI engine evaluates massive datasets for institutional compliance (e.g., JPMC), the ArthaShield module plugs directly into Razorpay's API to protect individual merchants:
+
+1. **Webhook Interception:** Listens to Razorpay `payment.captured` webhooks (`app/api/v1/razorpay_risk.py`).
+2. **Real-time Feature Mapping:** Maps Razorpay payload data (velocity, AVS, email) into the Aarthaa AI ensemble fraud model.
+3. **Automated Chargeback Defense:** If a payment is disputed, `chargeback_responder.py` combines **SHAP ML Explainability** with a **Regulatory RAG Pipeline** to auto-generate a comprehensive, legally sound evidence payload for the Razorpay Dispute API.

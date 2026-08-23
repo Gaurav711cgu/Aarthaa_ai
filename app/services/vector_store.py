@@ -25,6 +25,8 @@ EMBEDDINGS_FILE = os.path.join(BASE_DIR, "app", "models", "reg_embeddings.json")
 class LocalVectorStore:
     """Hybrid vector store supporting pgvector in PostgreSQL, ChromaDB persistent store,
     and a lightweight TF-IDF memory fallback for local execution limits.
+    
+    NOTE: Uses TF-IDF with random projection as a zero-dependency fallback. For production semantic search, configure EMBEDDING_PROVIDER=gemini or sentence-transformers.
     """
     def __init__(self):
         logger.info("Initializing vectorizer for regulatory corpus search...")
@@ -38,6 +40,7 @@ class LocalVectorStore:
         self.embeddings_db: List[Dict[str, Any]] = []
         self._tfidf_matrix = None   # sparse matrix
         self._is_fitted = False
+        logger.warning('Using random-projection embeddings. Set EMBEDDING_PROVIDER for production semantic search.')
 
         # pgvector Setup
         self.use_pgvector = is_postgres_active
