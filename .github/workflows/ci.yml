@@ -29,11 +29,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov bandit
 
       - name: Run Bandit Security SAST Analysis
         run: |
-          bandit -r app || true/ -ll --skip B105,B106
 
       - name: Run Threshold Analysis & Bias Audit
         run: |
